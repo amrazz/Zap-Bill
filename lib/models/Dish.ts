@@ -10,6 +10,7 @@ export interface IDish extends Document {
   department: 'Restaurant' | 'Bakery';
   imageUrl?: string;
   isAvailable: boolean;
+  category: string;
   variants: IVariant[];
   createdAt: Date;
 }
@@ -27,6 +28,7 @@ const DishSchema = new Schema<IDish>(
     name: { type: String, required: true, trim: true },
     department: { type: String, enum: ['Restaurant', 'Bakery'], required: true, default: 'Restaurant' },
     imageUrl: { type: String },
+    category: { type: String, trim: true, default: 'common' },
     isAvailable: { type: Boolean, default: true },
     variants: { type: [VariantSchema], required: true, validate: (v: IVariant[]) => v.length > 0 },
   },

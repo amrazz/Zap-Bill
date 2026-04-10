@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ secure_url: result.secure_url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Cloudinary upload error:', error);
+    const message = error instanceof Error ? error.message : 'Image upload failed';
     return NextResponse.json(
-      { error: error.message || 'Image upload failed' },
+      { error: message },
       { status: 500 }
     );
   }

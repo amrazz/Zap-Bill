@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 
 interface Variant { label: string; price: number; }
-interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery'; imageUrl?: string; variants: Variant[]; }
+interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery'; category?: string; imageUrl?: string; variants: Variant[]; }
 interface CartItem { dishId: string; dishName: string; variantLabel: string; price: number; qty: number; }
 
 // ── Printable Bill ──────────────────────────────────────────────
@@ -98,7 +98,7 @@ function VariantModal({ dish, onAdd, onClose }: {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
       <div
-        className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-6 shadow-xl"
+        className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-lg p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-start mb-4">
@@ -117,11 +117,10 @@ function VariantModal({ dish, onAdd, onClose }: {
             <button
               key={v.label}
               onClick={() => setSelected(v)}
-              className={`flex-1 min-w-[80px] py-2.5 px-3 rounded-xl border text-sm font-medium transition ${
-                selected?.label === v.label
-                  ? 'border-amber-500 bg-amber-50 text-amber-700'
-                  : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-              }`}
+              className={`flex-1 min-w-[80px] py-2.5 px-3 rounded-lg border text-sm font-medium transition ${selected?.label === v.label
+                ? 'border-amber-500 bg-amber-50 text-amber-700'
+                : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                }`}
             >
               <div>{v.label}</div>
               <div className="text-xs font-semibold mt-0.5">₹{v.price}</div>
@@ -132,7 +131,7 @@ function VariantModal({ dish, onAdd, onClose }: {
         {/* Qty stepper */}
         <div className="flex items-center justify-between mb-5">
           <span className="text-sm font-medium text-slate-700">Quantity</span>
-          <div className="flex items-center gap-3 bg-slate-100 rounded-xl p-1">
+          <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-8 h-8 rounded-lg bg-white shadow-sm text-slate-800 font-bold text-lg flex items-center justify-center hover:bg-slate-50">−</button>
             <span className="w-8 text-center font-semibold text-slate-800">{qty}</span>
             <button onClick={() => setQty((q) => q + 1)} className="w-8 h-8 rounded-lg bg-white shadow-sm text-slate-800 font-bold text-lg flex items-center justify-center hover:bg-slate-50">+</button>
@@ -143,7 +142,7 @@ function VariantModal({ dish, onAdd, onClose }: {
         <button
           id="add-to-order-btn"
           onClick={handleAdd}
-          className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2"
         >
           Add to Order
           {selected && <span className="text-amber-100">— ₹{(selected.price * qty).toFixed(0)}</span>}
@@ -155,24 +154,45 @@ function VariantModal({ dish, onAdd, onClose }: {
 
 // ── Main POS Page ────────────────────────────────────────────────
 export default function PosPage() {
+  const [user, setUser] = useState<{ username: string; department: 'Restaurant' | 'Bakery' } | null>(null);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [activeDepartment, setActiveDepartment] = useState<'Restaurant' | 'Bakery'>('Restaurant');
   const [orderType, setOrderType] = useState('Dine-In');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [isSaving, startSaving] = useTransition();
   const [lastBillNumber, setLastBillNumber] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Fetch session first
+    fetch('/api/auth/session')
+      .then(r => r.json())
+      .then(u => {
+        if (u.department) {
+          setUser(u);
+          setActiveDepartment(u.department);
+        }
+      });
+
     fetch('/api/dishes')
       .then((r) => r.json())
       .then((data) => { setDishes(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const filteredDishes = dishes.filter((d) => d.department === activeDepartment);
+  const filteredDishes = dishes.filter((d) =>
+    d.department === activeDepartment &&
+    (activeCategoryFilter === 'All' || (d.category || "common") === activeCategoryFilter) &&
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const availableCategories = Array.from(
+    new Set(dishes.filter(d => d.department === activeDepartment).map((i) => i.category || "common"))
+  ).sort();
 
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
@@ -238,25 +258,51 @@ export default function PosPage() {
       <div className="print:hidden flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
         {/* ── Left: Dishes ── */}
         <div className="flex-1 flex flex-col overflow-hidden border-r border-slate-200">
-          {/* Department Tabs */}
-          <div className="flex gap-2 px-4 py-3 overflow-x-auto bg-white border-b border-slate-100">
-            {['Restaurant', 'Bakery'].map((dept) => (
-              <button
-                key={dept}
-                onClick={() => setActiveDepartment(dept as 'Restaurant' | 'Bakery')}
-                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-sm font-semibold transition whitespace-nowrap ${
-                  activeDepartment === dept
-                    ? 'bg-amber-500 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          {/* Department Header & Search */}
+          <div className="px-5 py-4 bg-white border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+            <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-2 h-6 bg-amber-500 rounded-full" />
+              {activeDepartment} Menu
+            </h2>
+            <div className="relative w-full md:w-64 xl:w-80">
+              <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input
+                type="text"
+                placeholder="Search dishes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
+              />
+            </div>
+          </div>
+
+          {/* Category Tabs */}
+          <div className="bg-white border-b border-slate-100 flex items-center gap-2 overflow-x-auto px-5 py-2.5 custom-scrollbar shrink-0">
+            <button
+              onClick={() => setActiveCategoryFilter("All")}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === "All"
+                  ? "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
+            >
+              All Items
+            </button>
+            {availableCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategoryFilter(cat)}
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === cat
+                    ? "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
               >
-                {dept} Menu
+                {cat}
               </button>
             ))}
           </div>
 
           {/* Dish Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
             {filteredDishes.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -269,7 +315,7 @@ export default function PosPage() {
                     key={dish._id}
                     id={`dish-${dish._id}`}
                     onClick={() => setSelectedDish(dish)}
-                    className="group flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden text-left hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                    className="group flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden text-left hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                   >
                     {dish.imageUrl ? (
                       <div className="w-full aspect-4/3 bg-slate-100 overflow-hidden">
@@ -303,9 +349,9 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ── */}
-        <div className="w-80 xl:w-96 flex flex-col bg-white">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Current Order</h2>
+        <div className="w-80 xl:w-96 flex flex-col bg-white shrink-0 border-l border-slate-200 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]" style={{ height: 'calc(100vh - 56px)' }}>
+          <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <h2 className="text-lg font-bold text-slate-800">Current Order</h2>
             {cart.length > 0 && (
               <button onClick={() => setCart([])} className="text-xs text-slate-400 hover:text-red-500 transition">Clear all</button>
             )}
@@ -341,18 +387,20 @@ export default function PosPage() {
           </div>
 
           {/* Footer Total + Print */}
-          <div className="border-t border-slate-100 p-4 space-y-4">
-            
-            <div>
-              <p className="text-xs text-slate-500 mb-2 font-medium">Order Type</p>
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                {['Dine-In', 'Takeaway', 'Delivery'].map(type => (
-                  <button key={type} onClick={() => setOrderType(type)} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${orderType === type ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>
-                    {type}
-                  </button>
-                ))}
+          <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4 shrink-0 mt-auto">
+
+            {activeDepartment !== 'Bakery' && (
+              <div>
+                <p className="text-xs text-slate-500 mb-2 font-medium">Order Type</p>
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                  {['Dine-In', 'Takeaway', 'Delivery'].map(type => (
+                    <button key={type} onClick={() => setOrderType(type)} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${orderType === type ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-center justify-between pt-1">
               <span className="text-sm text-slate-600">{cart.reduce((s, c) => s + c.qty, 0)} item(s)</span>
@@ -365,7 +413,7 @@ export default function PosPage() {
               id="print-bill-btn"
               disabled={cart.length === 0 || isSaving}
               onClick={handleSaveAndPrint}
-              className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />

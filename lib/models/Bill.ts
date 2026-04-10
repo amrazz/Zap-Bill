@@ -11,6 +11,7 @@ export interface IBill extends Document {
   items: IBillItem[];
   subtotal: number;
   orderType: 'Dine-In' | 'Takeaway' | 'Delivery';
+  department: 'Restaurant' | 'Bakery';
   createdAt: Date;
 }
 
@@ -29,6 +30,7 @@ const BillSchema = new Schema<IBill>(
     items: { type: [BillItemSchema], required: true },
     subtotal: { type: Number, required: true },
     orderType: { type: String, enum: ['Dine-In', 'Takeaway', 'Delivery'], required: true, default: 'Dine-In' },
+    department: { type: String, enum: ['Restaurant', 'Bakery'], required: true },
   },
   { timestamps: true }
 );

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decrypt } from '@/lib/session';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login'];
+const PUBLIC_PATHS = ['/login', '/api/auth/'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

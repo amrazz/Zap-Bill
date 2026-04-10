@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/db';
 import User from '@/lib/models/User';
 import { createSession } from '@/lib/session';
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
     }
 
-    await createSession(user._id.toString(), user.username);
-    return NextResponse.json({ success: true, username: user.username });
+    await createSession(user._id.toString(), user.username, user.department);
+    return NextResponse.json({ success: true, username: user.username, department: user.department });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

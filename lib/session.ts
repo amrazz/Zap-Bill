@@ -11,6 +11,7 @@ const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export interface SessionPayload {
   userId: string;
   username: string;
+  department: 'Restaurant' | 'Bakery' | 'Admin';
   expiresAt: Date;
 }
 
@@ -31,9 +32,9 @@ export async function decrypt(token: string | undefined = ''): Promise<SessionPa
   }
 }
 
-export async function createSession(userId: string, username: string): Promise<void> {
+export async function createSession(userId: string, username: string, department: 'Restaurant' | 'Bakery' | 'Admin'): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-  const token = await encrypt({ userId, username, expiresAt });
+  const token = await encrypt({ userId, username, department, expiresAt });
   const cookieStore = await cookies();
 
   cookieStore.set(COOKIE_NAME, token, {

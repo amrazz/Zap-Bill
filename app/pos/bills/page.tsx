@@ -1,21 +1,54 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface BillItem { dishName: string; variantLabel: string; price: number; qty: number; }
 interface Bill { _id: string; items: BillItem[]; subtotal: number; orderType?: string; createdAt: string; }
 
 export default function BillsPage() {
+  const [user, setUser] = useState<{ department: string } | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [date, setDate] = useState<DateRange | undefined>();
 
   useEffect(() => {
+    fetch('/api/auth/session')
+      .then(r => r.json())
+      .then(u => setUser(u));
+
     fetch('/api/bills')
       .then((r) => r.json())
       .then((data) => { setBills(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  const filteredBills = bills.filter(bill => {
+    const billNum = `ZB${bill._id.slice(-6).toUpperCase()}`;
+    const searchLower = searchQuery.toLowerCase();
+
+    if (searchQuery && !billNum.toLowerCase().includes(searchLower)) {
+      if (!bill.items.some(i => i.dishName.toLowerCase().includes(searchLower))) {
+        return false;
+      }
+    }
+
+    const bDate = new Date(bill.createdAt);
+    if (date?.from) {
+      const start = startOfDay(date.from);
+      const end = date.to ? endOfDay(date.to) : endOfDay(date.from);
+      if (!isWithinInterval(bDate, { start, end })) return false;
+    }
+    return true;
+  });
 
   function formatDate(iso: string) {
     const d = new Date(iso);
@@ -37,7 +70,7 @@ export default function BillsPage() {
         <td style="text-align:center;padding:4px 0;">${i.qty}</td>
         <td style="text-align:right;padding:4px 0;">${(i.price * i.qty).toFixed(2)}</td>
       </tr>`).join('');
-    
+
     w.document.write(`
       <html><head><title>Bill #${billNum}</title>
       <style>
@@ -118,21 +151,90 @@ export default function BillsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 py-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Bill History</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Last 50 bills — most recent first.</p>
+    <div className="max-w-7xl mx-4 md:mx-auto p-4 py-8 space-y-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-slate-100 pb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <span className="w-2.5 h-7 bg-amber-500 rounded-full" />
+            {user?.department} Bill History
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Manage and review your recorded bills.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full md:w-64">
+            <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input
+              type="text"
+              placeholder="Search Bill No or Item..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 h-10 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition shadow-sm"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className={cn("grid gap-2")}>
+              <Popover>
+                <PopoverTrigger
+                  id="date"
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "w-full md:w-[260px] justify-start text-left font-normal h-10 rounded-lg border-slate-200 shadow-sm",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date?.from ? (
+                    date.to ? (
+                      <>
+                        {format(date.from, "LLL dd, y")} -{" "}
+                        {format(date.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(date.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 rounded-lg overflow-hidden shadow-xl border-slate-200" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={2}
+                    disabled={(date) => date > new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {date && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDate(undefined)}
+                className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Clear date filter"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {bills.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400">
-          <svg className="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-          <p className="text-sm">No bills yet. Start billing from the Cashier screen.</p>
+      {filteredBills.length === 0 ? (
+        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center text-slate-400 shadow-sm">
+          <svg className="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          <p className="text-base font-medium text-slate-500 mb-1">No bills found.</p>
+          <p className="text-xs">Adjust your search or start billing from the POS screen.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] overflow-hidden">
           <div className="divide-y divide-slate-100">
-            {bills.map((bill, idx) => {
+            {filteredBills.map((bill, idx) => {
               const billNum = `ZB${bill._id.slice(-6).toUpperCase()}`;
               const isExpanded = expanded === bill._id;
               return (
@@ -145,15 +247,20 @@ export default function BillsPage() {
                       {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800">{billNum} <span className="ml-2 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] uppercase font-bold">{bill.orderType || 'Dine-In'}</span></p>
-                      <p className="text-xs text-slate-500">{formatDate(bill.createdAt)} · {bill.items.reduce((s, i) => s + i.qty, 0)} items</p>
+                      <p className="text-sm font-medium text-slate-800">
+                        {billNum}
+                        {user?.department !== 'Bakery' && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] uppercase font-bold">{bill.orderType || 'Dine-In'}</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">{formatDate(bill.createdAt)} <span className="opacity-50 mx-1">•</span> {bill.items.reduce((s, i) => s + i.qty, 0)} items</p>
                     </div>
                     <span className="text-base font-bold text-slate-800 flex-shrink-0">₹{bill.subtotal.toFixed(0)}</span>
                     <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                   </button>
                   {isExpanded && (
                     <div className="px-5 pb-4 bg-slate-50/60">
-                      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
                         <table className="w-full text-sm">
                           <thead className="bg-slate-50 text-xs text-slate-500 font-medium border-b border-slate-200">
                             <tr>
@@ -166,7 +273,7 @@ export default function BillsPage() {
                           <tbody className="divide-y divide-slate-100">
                             {bill.items.map((item, i) => (
                               <tr key={i}>
-                                <td className="px-4 py-2 text-slate-700">{item.dishName} 
+                                <td className="px-4 py-2 text-slate-700">{item.dishName}
                                   {item.variantLabel && item.variantLabel !== 'Full' && item.variantLabel !== 'Per Piece' && (
                                     <span className="text-slate-400 text-xs block">({item.variantLabel})</span>
                                   )}
