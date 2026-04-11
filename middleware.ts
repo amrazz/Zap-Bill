@@ -6,7 +6,19 @@ const PUBLIC_PATHS = ['/login', '/api/auth/'];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths through
+  // Short-circuit for PWA and static assets to ensure installability
+  if (
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname.startsWith('/workbox-') ||
+    pathname.startsWith('/fallback-') ||
+    pathname.startsWith('/web-app-manifest-') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
+  // Allow other public paths through
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
@@ -23,5 +35,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-|fallback-|web-app-manifest-).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

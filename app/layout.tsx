@@ -10,7 +10,6 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'Zapbill - Restaurant Billing',
   description: 'Fast and simple restaurant management and billing system.',
-  manifest: '/manifest.json',
   icons: {
     apple: '/web-app-manifest-192x192.png',
   },
