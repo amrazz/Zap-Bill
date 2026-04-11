@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: 'Zapbill - Restaurant Billing',
   description: 'Fast and simple restaurant management and billing system.',
   manifest: '/manifest.json',
+  icons: {
+    apple: '/web-app-manifest-192x192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -29,11 +32,13 @@ export const viewport = {
 };
 
 import { Toaster } from 'sonner';
+import ServiceWorkerCleaner from '@/components/ServiceWorkerCleaner';
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${dmSans.variable} font-sans h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <ServiceWorkerCleaner />
         {children}
         <Toaster richColors position="bottom-right" />
       </body>

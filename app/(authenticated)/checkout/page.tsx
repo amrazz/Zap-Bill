@@ -1,8 +1,9 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { toast } from 'sonner';
+import { ShoppingCart, ArrowLeft, Plus, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Variant { label: string; price: number; }
 interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery'; category?: string; imageUrl?: string; variants: Variant[]; }
@@ -18,11 +19,10 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
 }) {
   const now = new Date();
   return (
-    <div ref={printRef} className="hidden print:block font-mono font-normal text-[10px] p-4 pt-6 w-full text-black">
+    <div ref={printRef} className="hidden print:block font-mono font-normal text-[11px] p-4 pt-6 w-full text-black">
       <div className="text-center mb-4">
-        <h2 className="text-sm font-bold uppercase tracking-wide mb-1">Indian Bakery & Restaurant</h2>
-        <p>Dottappankulam, Sulthan Bathery</p>
-        <p>Wayanad, 673692</p>
+        <h2 className="text-base font-bold uppercase tracking-tight mb-1">Indian Bakery & Restaurant</h2>
+        <p>Sulthan Bathery, Wayanad</p>
         <p className="mt-1">Ph: +91 8606086318, 04936 212155</p>
       </div>
 
@@ -49,17 +49,17 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
         <tbody className="align-top">
           {items.map((item, i) => (
             <tr key={i}>
-              <td className="py-1 pr-1">
+              <td className="py-1 pr-1 font-bold">
                 {item.dishName}
                 {item.variantLabel && item.variantLabel !== 'Full' && item.variantLabel !== 'Per Piece' && (
-                  <span className="block text-[8px] text-gray-600">({item.variantLabel})</span>
+                  <span className="block text-[8px] font-normal">({item.variantLabel})</span>
                 )}
               </td>
-              <td className="py-1 text-right">{item.price.toFixed(2)}</td>
+              <td className="py-1 text-right">₹{item.price.toFixed(2)}</td>
               <td className="py-1 text-center">
                 {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
               </td>
-              <td className="py-1 text-right">{(item.price * item.qty).toFixed(2)}</td>
+              <td className="py-1 text-right">₹{(item.price * item.qty).toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -260,9 +260,9 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
 
         {/* Receipt Simulation */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm font-mono text-[11px] text-slate-700 space-y-4">
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm font-mono text-[11px] text-slate-900 space-y-4">
             <div className="text-center space-y-0.5">
-              <p className="font-bold text-slate-900 text-xs uppercase tracking-tight">Indian Bakery & Restaurant</p>
+              <p className="font-bold text-slate-900 text-sm uppercase tracking-tight">Indian Bakery & Restaurant</p>
               <p>Sulthan Bathery, Wayanad</p>
               <p>Ph: +91 8606086318</p>
             </div>
@@ -280,7 +280,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
 
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-100 text-slate-400">
+                <tr className="border-b border-slate-100 text-slate-600">
                   <th className="text-left py-1 font-normal uppercase">Item</th>
                   <th className="text-right py-1 font-normal uppercase">Qty</th>
                   <th className="text-right py-1 font-normal uppercase">Amt</th>
@@ -288,17 +288,17 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={i} className="border-b border-slate-50 last:border-0">
+                  <tr key={i} className="border-b border-slate-50 last:border-0 text-slate-900">
                     <td className="py-2">
                       <p className="font-bold">{item.dishName}</p>
                       {item.variantLabel !== 'Full' && item.variantLabel !== 'Per Piece' && (
-                        <p className="text-[9px] opacity-70 italic">({item.variantLabel})</p>
+                        <p className="text-[9px] font-normal">({item.variantLabel})</p>
                       )}
                     </td>
                     <td className="py-2 text-right">
                       {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
                     </td>
-                    <td className="py-2 text-right">₹{(item.price * item.qty).toFixed(2)}</td>
+                    <td className="py-2 text-right font-medium">₹{(item.price * item.qty).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -354,6 +354,7 @@ export default function PosPage() {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCartMobileOpen, setIsCartMobileOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [lastBillNumber, setLastBillNumber] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
@@ -376,16 +377,16 @@ export default function PosPage() {
     const rows = bill.items.map(i => `
       <tr>
         <td style="padding:4px 0;vertical-align:top;">
-          <div style="display:flex;align-items:baseline;gap:4px;">
-            <span style="font-weight:bold;font-size:13px;">${i.dishName}</span>
+          <div style="font-size:14px;color:#000;">
+            <div style="font-weight:bold;">${i.dishName}</div>
             ${i.variantLabel !== 'Full' && i.variantLabel !== 'Per Piece'
-              ? `<span style="font-size:10px;opacity:0.65;">(${i.variantLabel})</span>`
+              ? `<div style="font-size:11px;">(${i.variantLabel})</div>`
               : ''}
           </div>
         </td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;">${i.price.toFixed(0)}</td>
-        <td style="text-align:center;font-size:13px;vertical-align:top;padding-top:4px;">${i.variantLabel.toLowerCase().includes('kg') ? i.qty.toFixed(3) : i.qty}</td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;">${(i.price * i.qty).toFixed(0)}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">&#8377;${i.price.toFixed(0)}</td>
+        <td style="text-align:center;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">${i.variantLabel.toLowerCase().includes('kg') ? i.qty.toFixed(3) : i.qty}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;font-weight:bold;color:#000;">&#8377;${(i.price * i.qty).toFixed(0)}</td>
       </tr>
     `).join('');
 
@@ -414,23 +415,24 @@ export default function PosPage() {
       .solid  { border-top: 2px solid #000; margin: 8px 0 0; }
       table   { width: 100%; border-collapse: collapse; margin: 10px 0; }
       th {
-        text-align: left; font-size: 10px; font-weight: bold;
+        text-align: left; font-size: 11px; font-weight: normal;
         text-transform: uppercase; border-bottom: 1.5px dashed #000;
         padding-bottom: 5px;
+        color: #000;
       }
       td { vertical-align: top; }
     </style></head><body>
 
     <!-- Header -->
-    <div class="center" style="margin-bottom:10px;">
-      <div style="font-size:16px;font-weight:bold;">INDIAN BAKERY &amp; RESTAURANT</div>
-      <div style="font-size:10px;margin-top:2px;">Sulthan Bathery, Wayanad</div>
-      <div style="font-size:10px;">Ph: +91 8606086318, 04936 212155</div>
+    <div class="center" style="margin-bottom:10px; color:#000;">
+      <div style="font-size:18px;font-weight:bold;">INDIAN BAKERY &amp; RESTAURANT</div>
+      <div style="font-size:12px;margin-top:2px;">Sulthan Bathery, Wayanad</div>
+      <div style="font-size:12px;">Ph: +91 8606086318, 04936 212155</div>
     </div>
 
     <!-- Bill meta -->
     <div class="dash"></div>
-    <div class="row" style="font-size:11px;">
+    <div class="row" style="font-size:12px; color:#000;">
       <div>
         <div>No: ZB${bill.billNumber}</div>
         ${bill.department !== 'Bakery' ? `<div>Mode: ${bill.orderType}</div>` : ''}
@@ -621,9 +623,12 @@ export default function PosPage() {
         <VariantModal dish={selectedDish} onAdd={addToCart} onClose={() => setSelectedDish(null)} />
       )}
 
-      <div className="print:hidden flex-1 flex h-full overflow-hidden">
+      <div className="print:hidden flex-1 flex h-full overflow-hidden relative">
         {/* ── Left: Dishes ── */}
-        <div className="flex-1 flex flex-col overflow-hidden border-r border-slate-200">
+        <div className={cn(
+          "flex-1 flex flex-col overflow-hidden border-r border-slate-200 transition-all",
+          isCartMobileOpen ? "hidden lg:flex" : "flex"
+        )}>
           {/* Department Header & Search */}
           <div className="px-5 py-4 bg-white border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
@@ -733,9 +738,37 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ── */}
-        <div className="w-80 xl:w-96 flex flex-col bg-white shrink-0 border-l border-slate-200 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] h-full">
-          <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-            <h2 className="text-lg font-bold text-slate-800">Current Order</h2>
+        {/* Floating Cart Button (Mobile Only) */}
+        {!isCartMobileOpen && cart.length > 0 && (
+          <div className="lg:hidden fixed bottom-20 left-0 right-0 px-4 z-40 animate-in fade-in slide-in-from-bottom-5">
+            <button 
+              onClick={() => setIsCartMobileOpen(true)}
+              className="w-full bg-amber-500 text-white h-14 rounded-2xl shadow-xl shadow-amber-500/30 flex items-center justify-between px-6 font-bold"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5" />
+                <span>{cart.length} Items</span>
+              </div>
+              <span>View Order — ₹{subtotal.toFixed(0)}</span>
+            </button>
+          </div>
+        )}
+
+        <div className={cn(
+          "flex flex-col bg-white shrink-0 border-l border-slate-200 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] h-full transition-all duration-300",
+          "fixed inset-0 z-50 lg:relative lg:inset-auto lg:w-80 xl:w-96 lg:translate-x-0 lg:flex",
+          isCartMobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        )}>
+          <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsCartMobileOpen(false)}
+                className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-lg font-bold text-slate-800">Current Order</h2>
+            </div>
             {cart.length > 0 && (
               <button onClick={() => setCart([])} className="text-xs text-slate-400 hover:text-red-500 transition">Clear all</button>
             )}
@@ -778,7 +811,7 @@ export default function PosPage() {
           </div>
 
           {/* Footer Total + Print */}
-          <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4 shrink-0 mt-auto">
+          <div className="border-t border-slate-100 bg-slate-50 p-4 pb-24 lg:pb-4 space-y-4 shrink-0 mt-auto">
 
             {activeDepartment !== 'Bakery' && (
               <div>

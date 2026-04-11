@@ -226,17 +226,17 @@ export default function BillsPage() {
   }
 
   return (
-    <div className="mx-10 p-4 py-8 space-y-6">
+    <div className="px-4 md:px-10 py-8 space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-slate-100 pb-5">
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <span className="w-2.5 h-7 bg-amber-500 rounded-full" />
             {user?.department} Bill History
           </h1>
           <p className="text-sm text-slate-500 mt-1">Manage and review your recorded bills.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full md:w-64">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1">
             <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input
               type="text"
@@ -247,29 +247,30 @@ export default function BillsPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Popover>
               <PopoverTrigger
                 id="date"
                 className={cn(
                   buttonVariants({ variant: "outline" }),
-                  "w-full md:w-[260px] justify-start text-left font-normal h-10 rounded-xl border-slate-200 shadow-sm",
+                  "flex-1 md:w-[260px] justify-start text-left font-normal h-10 rounded-xl border-slate-200 shadow-sm",
                   !date && "text-muted-foreground"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                  date.to ? (
-                    <>
-                      {format(date.from, "LLL dd, y")} -{" "}
-                      {format(date.to, "LLL dd, y")}
-                    </>
+                <span className="truncate">
+                  {date?.from ? (
+                    date.to ? (
+                      <>
+                        {format(date.from, "LLL dd")} - {format(date.to, "LLL dd")}
+                      </>
+                    ) : (
+                      format(date.from, "LLL dd")
+                    )
                   ) : (
-                    format(date.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
+                    <span>Pick a date range</span>
+                  )}
+                </span>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 rounded-xl overflow-hidden shadow-xl border-slate-200" align="end">
                 <Calendar
@@ -406,8 +407,8 @@ export default function BillsPage() {
                     </button>
                     {isExpanded && (
                       <div className="px-5 pb-4 bg-slate-50/60">
-                        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
-                          <table className="w-full text-sm">
+                        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white overflow-x-auto">
+                          <table className="w-full text-sm min-w-[500px]">
                             <thead className="bg-slate-50 text-xs text-slate-500 font-medium border-b border-slate-200">
                               <tr>
                                 <th className="text-left px-4 py-2">Item</th>

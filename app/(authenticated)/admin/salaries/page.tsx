@@ -332,7 +332,7 @@ export default function SalariesPage() {
   }
 
   return (
-    <div className="max-w-[100vw] mx-4 md:mx-10 p-4 py-8 space-y-6">
+    <div className="px-4 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -344,7 +344,7 @@ export default function SalariesPage() {
         </div>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-amber-500/20"
+          className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
         >
           <Plus className="w-4 h-4" />
           Record Payment
@@ -352,7 +352,7 @@ export default function SalariesPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-amber-50 text-amber-500 rounded-lg">
             <Wallet className="w-6 h-6" />
@@ -456,8 +456,8 @@ export default function SalariesPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex flex-wrap gap-3 items-center">
-        <div className="flex-1 min-w-[280px] relative group">
+      <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+        <div className="flex-1 min-w-0 relative group">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
           <input
             type="text"
@@ -468,49 +468,53 @@ export default function SalariesPage() {
           />
         </div>
         
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
-          <input
-            type="date"
-            lang="en-IN"
-            value={filterFrom}
-            onChange={e => setFilterFrom(e.target.value)}
-            className="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 cursor-pointer"
-          />
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">to</span>
-          <input
-            type="date"
-            lang="en-IN"
-            value={filterTo}
-            onChange={e => setFilterTo(e.target.value)}
-            className="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 cursor-pointer"
-          />
-        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 sm:flex-initial flex items-center gap-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
+            <input
+              type="date"
+              lang="en-IN"
+              value={filterFrom}
+              onChange={e => setFilterFrom(e.target.value)}
+              className="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 cursor-pointer w-[110px]"
+            />
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-1">to</span>
+            <input
+              type="date"
+              lang="en-IN"
+              value={filterTo}
+              onChange={e => setFilterTo(e.target.value)}
+              className="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 cursor-pointer w-[110px]"
+            />
+          </div>
 
-        <div className="relative">
-          <select 
-            value={filterStatus} 
-            onChange={e => setFilterStatus(e.target.value)} 
-            className="pl-3 pr-8 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 cursor-pointer appearance-none transition"
-          >
-            <option value="All">All Payments</option>
-            <option value="partial">Partial / Pending</option>
-            <option value="paid">Fully Paid</option>
-          </select>
-          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-        </div>
+          <div className="relative flex-1 sm:flex-initial">
+            <select 
+              value={filterStatus} 
+              onChange={e => setFilterStatus(e.target.value)} 
+              className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 cursor-pointer appearance-none transition"
+            >
+              <option value="All">All Payments</option>
+              <option value="partial">Partial / Pending</option>
+              <option value="paid">Fully Paid</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
 
-        {(search || filterFrom || filterTo || filterStatus !== 'All') && (
-          <button 
-            onClick={() => { setSearch(''); setFilterFrom(''); setFilterTo(''); setFilterStatus('All'); }} 
-            className="text-xs font-bold text-slate-400 hover:text-amber-600 transition p-2 rounded-lg hover:bg-amber-50"
-          >
-            Reset
-          </button>
-        )}
+          {(search || filterFrom || filterTo || filterStatus !== 'All') && (
+            <button 
+              onClick={() => { setSearch(''); setFilterFrom(''); setFilterTo(''); setFilterStatus('All'); }} 
+              className="text-xs font-bold text-slate-400 hover:text-amber-600 transition p-2 rounded-lg hover:bg-amber-50"
+            >
+              Reset
+            </button>
+          )}
+        </div>
         
-        <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-           <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{filtered.length} Results</span>
+        <div className="lg:ml-auto flex items-center justify-between lg:justify-end gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+           <div className="flex items-center gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
+           </div>
         </div>
       </div>
 

@@ -93,7 +93,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="max-w-[100vw] mx-10 p-4 py-8 space-y-8">
+    <div className="px-4 md:px-10 py-8 space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -103,11 +103,11 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500 mt-1">Real-time performance analytics for Bakery and Restaurant.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-lg shadow-sm w-full md:w-auto overflow-x-auto">
           <button
             onClick={() => setRange('today')}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition",
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap",
               filterType === 'today' ? "bg-amber-100 text-amber-700" : "text-slate-500 hover:bg-slate-50"
             )}
           >
@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <button
             onClick={() => setRange('yesterday')}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition",
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap",
               filterType === 'yesterday' ? "bg-amber-100 text-amber-700" : "text-slate-500 hover:bg-slate-50"
             )}
           >
@@ -125,7 +125,7 @@ export default function DashboardPage() {
           <button
             onClick={() => setRange('last7')}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition",
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap",
               filterType === 'last7' ? "bg-amber-100 text-amber-700" : "text-slate-500 hover:bg-slate-50"
             )}
           >
@@ -134,36 +134,38 @@ export default function DashboardPage() {
           <button
             onClick={() => setRange('month')}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition",
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap",
               filterType === 'month' ? "bg-amber-100 text-amber-700" : "text-slate-500 hover:bg-slate-50"
             )}
           >
             This Month
           </button>
 
-          <div className="w-px h-4 bg-slate-200 mx-1" />
+          <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block" />
 
           <Popover>
             <PopoverTrigger
               className={cn(
                 buttonVariants({ variant: "outline" }),
-                "h-8 justify-start text-left font-bold text-xs rounded-lg border-none hover:bg-slate-50",
+                "h-8 justify-start text-left font-bold text-xs rounded-lg border-none hover:bg-slate-50 whitespace-nowrap",
                 filterType === 'custom' && "text-amber-700 bg-amber-50",
                 !date && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-              {date?.from ? (
-                date.to ? (
-                  <>
-                    {format(date.from, "LLL dd")} - {format(date.to, "LLL dd")}
-                  </>
+              <span className="truncate">
+                {date?.from ? (
+                  date.to ? (
+                    <>
+                      {format(date.from, "LLL dd")} - {format(date.to, "LLL dd")}
+                    </>
+                  ) : (
+                    format(date.from, "LLL dd")
+                  )
                 ) : (
-                  format(date.from, "LLL dd")
-                )
-              ) : (
-                <span>Pick a date</span>
-              )}
+                  <span>Pick a date</span>
+                )}
+              </span>
               <ChevronDown className="ml-2 h-3.5 w-3.5 opacity-50" />
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 rounded-lg border-slate-200 shadow-xl" align="end">

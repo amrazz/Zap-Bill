@@ -357,7 +357,7 @@ export default function AdminPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {displayItems.map((dish) => (
               <div
                 key={dish._id}
@@ -423,7 +423,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="mx-20 p-4 py-8 space-y-8">
+    <div className="px-4 md:px-10 lg:px-20 py-8 space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -482,7 +482,7 @@ export default function AdminPage() {
 
       {/* Add/Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-[50vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white">
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[600px] lg:max-w-[50vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white">
           <DialogHeader className="px-6 py-4 border-b border-slate-100 shrink-0">
             <DialogTitle className="text-lg font-bold text-slate-800">
               {editId ? "Edit Menu Item" : "Add New Menu Item"}
