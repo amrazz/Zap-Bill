@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { toast } from 'sonner';
 import { ShoppingCart, ArrowLeft, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface Variant { label: string; price: number; }
 interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery'; category?: string; imageUrl?: string; variants: Variant[]; }
