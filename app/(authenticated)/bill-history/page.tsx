@@ -279,7 +279,7 @@ export default function BillsPage() {
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={2}
-                  disabled={(date) => date > new Date()}
+                  disabled={(date: Date) => date > new Date()}
                 />
               </PopoverContent>
             </Popover>
@@ -508,7 +508,7 @@ export default function BillsPage() {
         </>
       )}
 
-      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <Dialog open={!!deleteId} onOpenChange={(open: boolean) => !open && setDeleteId(null)}>
         <DialogContent className="sm:max-w-md bg-white border-slate-200">
           <DialogHeader>
             <DialogTitle className="text-slate-900">Cancel Bill</DialogTitle>
@@ -520,7 +520,7 @@ export default function BillsPage() {
             <Textarea
               placeholder="Enter cancellation reason..."
               value={deleteReason}
-              onChange={(e) => setDeleteReason(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDeleteReason(e.target.value)}
               className="min-h-[100px] border-slate-200 focus:border-amber-400 focus:ring-amber-400/20 text-slate-900"
               autoFocus
             />

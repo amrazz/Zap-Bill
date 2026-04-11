@@ -23,9 +23,10 @@ export async function GET(request: NextRequest) {
     const start = fromParam ? startOfDay(parseISO(fromParam)) : startOfMonth(now);
     const end = toParam ? endOfDay(parseISO(toParam)) : endOfMonth(now);
 
-    // Get all bills for this range
+    // Get all bills for this range (exclude deleted)
     const currentMonthBills = await Bill.find({
-      createdAt: { $gte: start, $lte: end }
+      createdAt: { $gte: start, $lte: end },
+      isDeleted: { $ne: true }
     }).lean();
 
     // Get all expenses for this month

@@ -22,7 +22,7 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        router.push('/pos');
+        router.push('/checkout');
         router.refresh();
       } else {
         const data = await res.json();
@@ -100,7 +100,7 @@ export default function LoginPage() {
             >
               {isPending ? 'Signing in…' : 'Sign in'}
             </button>
-          </form>
+          </form> 
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">Zapbill © {new Date().getFullYear()}</p>

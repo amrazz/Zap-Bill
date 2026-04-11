@@ -27,12 +27,22 @@ export async function POST(request: NextRequest) {
     }
 
     const { description, amount, category, date, department } = await request.json();
-    if (!description || !amount || !category) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    
+    // Improved validation
+    if (!description) return NextResponse.json({ error: 'Description is required' }, { status: 400 });
+    if (amount === undefined || amount === null || amount === "") {
+      return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
+    }
+    if (!category) return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+
+    const expenseDate = date ? new Date(date) : new Date();
+    const numAmount = Number(amount);
+    if (isNaN(numAmount)) {
+      return NextResponse.json({ error: 'Amount must be a number' }, { status: 400 });
     }
 
     await connectDB();
-    const expense = await Expense.create({ description, amount, category, date, department });
+    const expense = await Expense.create({ description, amount: numAmount, category, date: expenseDate, department });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error('POST expense error:', error);

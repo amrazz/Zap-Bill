@@ -121,6 +121,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body,
   button,
   input,
@@ -128,9 +129,11 @@
   select {
     font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
@@ -140,16 +143,17 @@
   @page {
     margin: 0;
   }
-  
+
   body {
     margin: 0;
     padding: 0;
   }
 
   /* Hide everything on screen except the bill print element */
-  body > * {
+  body>* {
     display: none !important;
   }
+
   .print\:block {
     display: block !important;
   }

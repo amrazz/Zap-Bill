@@ -4,7 +4,7 @@ import { getSession } from '@/lib/session';
 export default async function RootPage() {
   const session = await getSession();
   if (session) {
-    redirect('/pos');
+    redirect('/checkout');
   } else {
     redirect('/login');
   }

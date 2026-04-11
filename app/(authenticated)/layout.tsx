@@ -26,17 +26,13 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
       .then((r) => r.json())
       .then((u) => {
         setUser(u);
-        const isAdminPage =
-          pathname.startsWith("/pos/dashboard") ||
-          pathname.startsWith("/pos/expenses") ||
-          pathname.startsWith("/pos/salaries");
-        const isOpsPage =
-          pathname === "/pos" || pathname.startsWith("/pos/admin");
+        const isAdminPage = pathname.startsWith("/admin/");
+        const isOpsPage = pathname === "/checkout" || pathname === "/menu";
 
         if (u.department === "Admin" && isOpsPage) {
-          router.replace("/pos/dashboard");
+          router.replace("/admin/dashboard");
         } else if (u.department !== "Admin" && isAdminPage) {
-          router.replace("/pos");
+          router.replace("/checkout");
         }
       })
       .catch(() => { });
@@ -53,19 +49,19 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
   const navLinks =
     user?.department === "Admin"
       ? [
-        { href: "/pos/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/pos/bills", label: "Bills", icon: Receipt },
-        { href: "/pos/expenses", label: "Expenses", icon: Wallet },
-        { href: "/pos/salaries", label: "Salaries", icon: Users },
+        { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/bill-history", label: "Bills", icon: Receipt },
+        { href: "/admin/expenses", label: "Expenses", icon: Wallet },
+        { href: "/admin/salaries", label: "Salaries", icon: Users },
       ]
       : [
-        { href: "/pos", label: "POS", icon: ShoppingCart },
-        { href: "/pos/admin", label: "Items", icon: Package },
-        { href: "/pos/bills", label: "History", icon: History },
+        { href: "/checkout", label: "Checkout", icon: ShoppingCart },
+        { href: "/menu", label: "Menu", icon: Package },
+        { href: "/bill-history", label: "History", icon: History },
       ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col print:bg-white print:block pb-20 md:pb-0">
+    <div className="h-screen bg-slate-50 flex flex-col print:bg-white print:block pb-20 md:pb-0 overflow-hidden">
       {/* Top Navbar */}
       <header className="print:hidden bg-white border-b border-slate-200 px-4 h-16 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2 md:gap-8">
@@ -118,7 +114,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col print:block">{children}</main>
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto print:block">{children}</main>
 
       {/* Bottom Mobile Tab Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-100 px-2 py-3 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)]">
@@ -130,7 +126,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 px-3 py-1 rounded-2xl transition-all duration-300",
+                  "flex flex-col items-center gap-1.5 px-3 py-1 rounded-lg transition-all duration-300",
                   isActive ? "text-amber-600 scale-110" : "text-slate-400",
                 )}
               >

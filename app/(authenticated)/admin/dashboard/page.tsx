@@ -86,10 +86,10 @@ export default function DashboardPage() {
   const { summary, chartData } = stats;
 
   const cards = [
-    { title: 'Total Sales', value: `₹${summary.totalSales.toLocaleString()}`, icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+12%', trendUp: true },
-    { title: 'Expenses', value: `₹${summary.totalExpenses.toLocaleString()}`, icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50', trend: '-2%', trendUp: false },
-    { title: 'Salaries', value: `₹${summary.totalSalaries.toLocaleString()}`, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50', trend: 'Fixed', trendUp: true },
-    { title: 'Net Profit', value: `₹${summary.netProfit.toLocaleString()}`, icon: DollarSign, color: summary.netProfit >= 0 ? 'text-amber-600' : 'text-red-600', bg: 'bg-amber-50', trend: 'This Month', trendUp: true },
+    { title: 'Total Sales', value: `₹${summary.totalSales.toLocaleString()}`, icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { title: 'Expenses', value: `₹${summary.totalExpenses.toLocaleString()}`, icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { title: 'Salaries', value: `₹${summary.totalSalaries.toLocaleString()}`, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { title: 'Net Profit', value: `₹${summary.netProfit.toLocaleString()}`, icon: DollarSign, color: summary.netProfit >= 0 ? 'text-amber-600' : 'text-red-600', bg: 'bg-amber-50' },
   ];
 
   return (
@@ -172,12 +172,12 @@ export default function DashboardPage() {
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={(range) => {
+                onSelect={(range: DateRange | undefined) => {
                   setDate(range);
                   if (range) setFilterType('custom');
                 }}
                 numberOfMonths={2}
-                disabled={(date) => date > new Date()}
+                disabled={(date: Date) => date > new Date()}
               />
             </PopoverContent>
           </Popover>
@@ -200,9 +200,6 @@ export default function DashboardPage() {
                   <div className={`w-10 h-10 ${card.bg} rounded-lg flex items-center justify-center`}>
                     <card.icon className={`w-5 h-5 ${card.color}`} />
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${card.trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                    {card.trend}
-                  </span>
                 </div>
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.title}</h3>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{card.value}</p>

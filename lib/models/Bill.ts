@@ -12,6 +12,9 @@ export interface IBill extends Document {
   subtotal: number;
   orderType: 'Dine-In' | 'Takeaway' | 'Delivery';
   department: 'Restaurant' | 'Bakery';
+  isDeleted: boolean;
+  deletionReason?: string;
+  deletedAt?: Date;
   createdAt: Date;
 }
 
@@ -20,7 +23,7 @@ const BillItemSchema = new Schema<IBillItem>(
     dishName: { type: String, required: true },
     variantLabel: { type: String, required: true },
     price: { type: Number, required: true },
-    qty: { type: Number, required: true, min: 1 },
+    qty: { type: Number, required: true, min: 0 },
   },
   { _id: false }
 );
@@ -31,6 +34,9 @@ const BillSchema = new Schema<IBill>(
     subtotal: { type: Number, required: true },
     orderType: { type: String, enum: ['Dine-In', 'Takeaway', 'Delivery'], required: true, default: 'Dine-In' },
     department: { type: String, enum: ['Restaurant', 'Bakery'], required: true },
+    isDeleted: { type: Boolean, default: false },
+    deletionReason: { type: String },
+    deletedAt: { type: Date },
   },
   { timestamps: true }
 );

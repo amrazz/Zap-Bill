@@ -13,6 +13,7 @@ import {
   Trash2,
   Pencil,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -54,6 +65,7 @@ const PRESET_VARIANTS = {
     { label: "Full", price: "" },
   ],
   "Per Piece": [{ label: "Per Piece", price: "" }],
+  "Weight (KG)": [{ label: "Per KG", price: "" }],
   Custom: [{ label: "", price: "" }],
 };
 
@@ -88,7 +100,10 @@ export default function AdminPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [itemToDelete, setItemToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
@@ -182,7 +197,6 @@ export default function AdminPage() {
     setEditId(null);
     setForm({ ...emptyDish(), department: user?.department ?? "Restaurant" });
     setError("");
-    setSuccess("");
     setIsModalOpen(true);
   }
 
@@ -196,7 +210,6 @@ export default function AdminPage() {
       variants: dish.variants.map((v) => ({ ...v, price: String(v.price) })),
     });
     setError("");
-    setSuccess("");
     setIsModalOpen(true);
   }
 
@@ -241,7 +254,6 @@ export default function AdminPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     const variants = form.variants.map((v) => ({
       label: v.label.trim(),
@@ -271,7 +283,7 @@ export default function AdminPage() {
         }),
       });
       if (res.ok) {
-        setSuccess(editId ? "Dish updated!" : "Dish added!");
+        toast.success(editId ? "Dish updated!" : "Dish added!");
         fetchDishes();
         closeModal();
       } else {
@@ -281,13 +293,19 @@ export default function AdminPage() {
     });
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/dishes/${id}`, { method: "DELETE" });
+  async function handleDelete() {
+    if (!itemToDelete) return;
+    const res = await fetch(`/api/dishes/${itemToDelete.id}`, {
+      method: "DELETE",
+    });
     if (res.ok) {
-      setSuccess("Dish deleted.");
+      toast.success("Dish deleted.");
       fetchDishes();
-    } else setError("Failed to delete dish.");
+      setItemToDelete(null);
+    } else {
+      setError("Failed to delete dish.");
+      setItemToDelete(null);
+    }
   }
 
   const filteredDishes = dishes.filter(
@@ -301,8 +319,8 @@ export default function AdminPage() {
       new Set(items.map((i) => i.category || "common")),
     ).sort();
 
-    const displayItems = activeCategoryFilter === "All" 
-      ? items 
+    const displayItems = activeCategoryFilter === "All"
+      ? items
       : items.filter((i) => (i.category || "common") === activeCategoryFilter);
 
     return (
@@ -311,11 +329,10 @@ export default function AdminPage() {
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
           <button
             onClick={() => setActiveCategoryFilter("All")}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
-              activeCategoryFilter === "All"
+            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === "All"
                 ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-            }`}
+              }`}
           >
             All Items
           </button>
@@ -323,11 +340,10 @@ export default function AdminPage() {
             <button
               key={cat}
               onClick={() => setActiveCategoryFilter(cat)}
-              className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                activeCategoryFilter === cat
+              className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === cat
                   ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-              }`}
+                }`}
             >
               {cat}
             </button>
@@ -341,7 +357,7 @@ export default function AdminPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {displayItems.map((dish) => (
               <div
                 key={dish._id}
@@ -391,7 +407,9 @@ export default function AdminPage() {
                   <Button
                     variant="destructive"
                     className="p-3"
-                    onClick={() => handleDelete(dish._id, dish.name)}
+                    onClick={() =>
+                      setItemToDelete({ id: dish._id, name: dish.name })
+                    }
                   >
                     <Trash2 className="w-4 h-4 mr-1" /> Delete
                   </Button>
@@ -405,14 +423,14 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 py-8 space-y-8">
+    <div className="mx-20 p-4 py-8 space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Manage Menu
           </h1>
           <p className="text-slate-500 text-sm">
-            Organize and update your Restaurant and Bakery offerings.
+            Organize and update your {user?.department} offerings.
           </p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -435,11 +453,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {success && (
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 px-4 py-3 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2">
-          {success}
-        </div>
-      )}
+
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -603,7 +617,7 @@ export default function AdminPage() {
                             console.error("Failed to save category:", err);
                           }
                         }}
-                        className="h-15 w-11 rounded-lg bg-amber-500 hover:bg-amber-600 shadow-sm"
+                        className="h-11 w-11 rounded-lg bg-amber-500 hover:bg-amber-600 shadow-sm"
                       >
                         <Check className="w-5 h-5" />
                       </Button>
@@ -870,6 +884,30 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => !open && setItemToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              item <span className="font-bold text-slate-900">"{itemToDelete?.name}"</span> from your menu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
