@@ -3,7 +3,7 @@ import { decrypt } from '@/lib/session';
 
 const PUBLIC_PATHS = ['/login', '/api/auth/'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Short-circuit for PWA and static assets to ensure installability

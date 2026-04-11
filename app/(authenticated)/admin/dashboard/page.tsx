@@ -218,9 +218,10 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300" /> Expenses</div>
                 </div>
               </div>
-              <div className="h-[300px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
+              <div className="h-[300px] w-full min-w-0 mt-4 relative">
+                {chartData && chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
@@ -248,6 +249,11 @@ export default function DashboardPage() {
                     <Area type="monotone" dataKey="expenses" stroke="#cbd5e1" strokeWidth={2} fillOpacity={0} />
                   </AreaChart>
                 </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs font-medium">
+                    No data available for the selected period
+                  </div>
+                )}
               </div>
             </div>
 
