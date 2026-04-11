@@ -9,6 +9,7 @@ export async function proxy(request: NextRequest) {
   // Short-circuit for PWA and static assets to ensure installability
   if (
     pathname === '/manifest.json' ||
+    pathname === '/manifest.webmanifest' ||
     pathname === '/sw.js' ||
     pathname.startsWith('/workbox-') ||
     pathname.startsWith('/fallback-') ||
