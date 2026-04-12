@@ -141,9 +141,9 @@ export default function BillsPage() {
           ${i.dishName}
           ${i.variantLabel && i.variantLabel !== 'Full' && i.variantLabel !== 'Per Piece' ? `<span style="display:block;font-size:8px;color:#333;">(${i.variantLabel})</span>` : ''}
         </td>
-        <td style="text-align:right;padding:4px 0;">${i.price.toFixed(2)}</td>
-        <td style="text-align:center;padding:4px 0;">${i.qty}</td>
-        <td style="text-align:right;padding:4px 0;">${(i.price * i.qty).toFixed(2)}</td>
+        <td style="text-align:center;padding:4px 0;width:32px;">${i.qty}</td>
+        <td style="text-align:right;padding:4px 0;">₹${i.price.toFixed(2)}</td>
+        <td style="text-align:right;padding:4px 0;">₹${(i.price * i.qty).toFixed(2)}</td>
       </tr>`).join('');
 
     w.document.write(`
@@ -162,7 +162,7 @@ export default function BillsPage() {
         }
         h2 { text-align: center; margin: 0 0 2px 0; font-size: 12px; text-transform: uppercase; font-weight: bold; }
         p { text-align: center; margin: 1px 0; line-height: 1.2; font-weight: normal; }
-        table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 8px; }
         th { border-bottom: 1px dashed #000; padding-bottom: 4px; font-weight: bold; }
         .flex { display: flex; justify-content: space-between; }
         .border-t-dashed { border-top: 1px dashed #000; }
@@ -189,9 +189,9 @@ export default function BillsPage() {
         <thead>
           <tr>
             <th style="text-align:left;">Item</th>
+            <th style="text-align:center;width:40px;">Qty</th>
             <th style="text-align:right;">Rate</th>
-            <th style="text-align:center;width:32px;">Qty</th>
-            <th style="text-align:right;">Amt</th>
+            <th style="text-align:right;">Amount</th>
           </tr>
         </thead>
         <tbody style="vertical-align:top;">${rows}</tbody>
@@ -402,7 +402,7 @@ export default function BillsPage() {
                       <span className={cn(
                         "text-base font-bold text-slate-800 flex-shrink-0",
                         bill.isDeleted && "line-through opacity-50"
-                      )}>₹{bill.subtotal.toFixed(0)}</span>
+                      )}>₹{bill.subtotal.toFixed(2)}</span>
                       <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {isExpanded && (
@@ -412,8 +412,8 @@ export default function BillsPage() {
                             <thead className="bg-slate-50 text-xs text-slate-500 font-medium border-b border-slate-200">
                               <tr>
                                 <th className="text-left px-4 py-2">Item</th>
+                                <th className="text-center px-4 py-2">Qty</th>
                                 <th className="text-right px-4 py-2">Rate</th>
-                                <th className="text-center px-2 py-2">Qty</th>
                                 <th className="text-right px-4 py-2">Amount</th>
                               </tr>
                             </thead>
@@ -428,20 +428,20 @@ export default function BillsPage() {
                                       )}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-2 text-right text-slate-600">₹{item.price.toFixed(0)}</td>
-                                  <td className="px-2 py-2 text-center text-slate-600">{item.qty}</td>
-                                  <td className="px-4 py-2 text-right text-slate-700">₹{(item.price * item.qty).toFixed(0)}</td>
+                                  <td className="px-4 py-2 text-center text-slate-600">{item.qty}</td>
+                                  <td className="px-4 py-2 text-right text-slate-600">₹{item.price.toFixed(2)}</td>
+                                  <td className="px-4 py-2 text-right text-slate-700 font-medium">₹{(item.price * item.qty).toFixed(2)}</td>
                                 </tr>
                               ))}
                             </tbody>
                             <tfoot>
                               <tr className="bg-slate-50 font-semibold border-t border-slate-200">
                                 <td className="px-4 py-2 text-slate-600" colSpan={3}>Subtotal</td>
-                                <td className="px-4 py-2 text-right text-slate-700">₹{bill.subtotal.toFixed(0)}</td>
+                                <td className="px-4 py-2 text-right text-slate-700">₹{bill.subtotal.toFixed(2)}</td>
                               </tr>
                               <tr className="bg-amber-50 font-bold border-t border-amber-100 text-base">
                                 <td className="px-4 py-3 text-amber-900" colSpan={3}>Grand Total</td>
-                                <td className="px-4 py-3 text-right text-amber-900">₹{bill.subtotal.toFixed(0)}</td>
+                                <td className="px-4 py-3 text-right text-amber-900">₹{bill.subtotal.toFixed(2)}</td>
                               </tr>
                             </tfoot>
                           </table>

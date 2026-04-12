@@ -38,13 +38,13 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
         </div>
       </div>
 
-      <table className="w-full mb-2">
+      <table className="w-full mt-4 mb-2">
         <thead>
           <tr className="border-b border-dashed border-black">
             <th className="text-left pb-1 font-normal uppercase">Item</th>
+            <th className="text-center pb-1 w-12 font-normal uppercase">Qty</th>
             <th className="text-right pb-1 font-normal uppercase">Rate</th>
-            <th className="text-center pb-1 w-8 font-normal uppercase">Qty</th>
-            <th className="text-right pb-1 font-normal uppercase">Amt</th>
+            <th className="text-right pb-1 font-normal uppercase">Amount</th>
           </tr>
         </thead>
         <tbody className="align-top">
@@ -56,10 +56,10 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
                   <span className="block text-[8px] font-normal">({item.variantLabel})</span>
                 )}
               </td>
-              <td className="py-1 text-right">₹{item.price.toFixed(2)}</td>
               <td className="py-1 text-center">
                 {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
               </td>
+              <td className="py-1 text-right">₹{item.price.toFixed(2)}</td>
               <td className="py-1 text-right">₹{(item.price * item.qty).toFixed(2)}</td>
             </tr>
           ))}
@@ -284,7 +284,8 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
                 <tr className="border-b border-slate-100 text-slate-600">
                   <th className="text-left py-1 font-normal uppercase">Item</th>
                   <th className="text-right py-1 font-normal uppercase">Qty</th>
-                  <th className="text-right py-1 font-normal uppercase">Amt</th>
+                  <th className="text-right py-1 font-normal uppercase">Rate</th>
+                  <th className="text-right py-1 font-normal uppercase">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,6 +300,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
                     <td className="py-2 text-right">
                       {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
                     </td>
+                    <td className="py-2 text-right">₹{item.price.toFixed(2)}</td>
                     <td className="py-2 text-right font-medium">₹{(item.price * item.qty).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -379,15 +381,15 @@ export default function PosPage() {
       <tr>
         <td style="padding:4px 0;vertical-align:top;">
           <div style="font-size:14px;color:#000;">
-            <div style="font-weight:bold;">${i.dishName}</div>
+            <div style="font-weight:normal;">${i.dishName}</div>
             ${i.variantLabel !== 'Full' && i.variantLabel !== 'Per Piece'
               ? `<div style="font-size:11px;">(${i.variantLabel})</div>`
               : ''}
           </div>
         </td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">&#8377;${i.price.toFixed(0)}</td>
         <td style="text-align:center;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">${i.variantLabel.toLowerCase().includes('kg') ? i.qty.toFixed(3) : i.qty}</td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;font-weight:bold;color:#000;">&#8377;${(i.price * i.qty).toFixed(0)}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">&#8377;${i.price.toFixed(2)}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;font-weight:bold;color:#000;">&#8377;${(i.price * i.qty).toFixed(2)}</td>
       </tr>
     `).join('');
 
@@ -414,7 +416,7 @@ export default function PosPage() {
       .row    { display: flex; justify-content: space-between; }
       .dash   { border-top: 1.5px dashed #000; margin: 8px 0; }
       .solid  { border-top: 2px solid #000; margin: 8px 0 0; }
-      table   { width: 100%; border-collapse: collapse; margin: 10px 0; }
+      table   { width: 100%; border-collapse: collapse; margin: 20px 0 10px; }
       th {
         text-align: left; font-size: 11px; font-weight: normal;
         text-transform: uppercase; border-bottom: 1.5px dashed #000;
@@ -433,7 +435,7 @@ export default function PosPage() {
 
     <!-- Bill meta -->
     <div class="dash"></div>
-    <div class="row" style="font-size:12px; color:#000;">
+    <div class="row" style="font-size:12px; margin-bottom:10px; color:#000;">
       <div>
         <div>No: ZB${bill.billNumber}</div>
         ${bill.department !== 'Bakery' ? `<div>Mode: ${bill.orderType}</div>` : ''}
@@ -448,10 +450,10 @@ export default function PosPage() {
     <table>
       <thead>
         <tr>
-          <th style="width:46%;">Item</th>
-          <th style="text-align:right;">Rate</th>
+          <th style="width:40%;">Item</th>
           <th style="text-align:center;">Qty</th>
-          <th style="text-align:right;">Amt</th>
+          <th style="text-align:right;">Rate</th>
+          <th style="text-align:right;">Amount</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

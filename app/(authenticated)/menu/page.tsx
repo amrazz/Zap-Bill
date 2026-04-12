@@ -430,7 +430,7 @@ export default function AdminPage() {
             Manage Menu
           </h1>
           <p className="text-slate-500 text-sm">
-            Organize and update your {user?.department} offerings.
+            Organize and update your {user?.department} menu.
           </p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
