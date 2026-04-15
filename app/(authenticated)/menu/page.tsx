@@ -263,8 +263,8 @@ export default function AdminPage() {
       setError("Name and department are required.");
       return;
     }
-    if (variants.some((v) => !v.label || isNaN(v.price) || v.price < 0)) {
-      setError("All variant labels and prices are required.");
+    if (variants.some((v) => !v.label || isNaN(v.price) || v.price <= 0)) {
+      setError("All variant labels and prices greater than 0 are required.");
       return;
     }
 
@@ -330,8 +330,8 @@ export default function AdminPage() {
           <button
             onClick={() => setActiveCategoryFilter("All")}
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === "All"
-                ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
-                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
+              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
               }`}
           >
             All Items
@@ -341,8 +341,8 @@ export default function AdminPage() {
               key={cat}
               onClick={() => setActiveCategoryFilter(cat)}
               className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${activeCategoryFilter === cat
-                  ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
-                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
             >
               {cat}
@@ -384,6 +384,9 @@ export default function AdminPage() {
                     >
                       {dish.name}
                     </h3>
+                    <p className="text-[10px] tracking-widest text-slate-400">
+                      {dish.category || "Common"}
+                    </p>
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       {dish.variants.map((v) => (
                         <span

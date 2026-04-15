@@ -39,8 +39,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Amount/Price validation: No variant should have a price <= 0
+    if (variants.some((v: any) => v.price <= 0)) {
+      return NextResponse.json(
+        { error: 'All item prices must be greater than 0.' },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
-    const dish = await Dish.create({ name, department, category, imageUrl, variants, isAvailable: isAvailable ?? true });
+
+    // Check if dish already exists in this department
+    const existingDish = await Dish.findOne({ 
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, 
+      department 
+    });
+    
+    if (existingDish) {
+      return NextResponse.json(
+        { error: `Item "${name}" already exists in ${department}.` },
+        { status: 400 }
+      );
+    }
+
+    const dish = await Dish.create({ 
+      name: name.trim(), 
+      department, 
+      category, 
+      imageUrl, 
+      variants, 
+      isAvailable: isAvailable ?? true 
+    });
     return NextResponse.json(dish, { status: 201 });
   } catch (error) {
     console.error('POST dish error:', error);

@@ -42,8 +42,8 @@ export default function DashboardPage() {
       try {
         let url = '/api/admin/stats';
         if (date?.from) {
-          const from = date.from.toISOString();
-          const to = (date.to || date.from).toISOString();
+          const from = format(date.from, 'yyyy-MM-dd');
+          const to = format(date.to || date.from, 'yyyy-MM-dd');
           url += `?from=${from}&to=${to}`;
         }
         const r = await fetch(url);
@@ -240,9 +240,10 @@ export default function DashboardPage() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 10, fill: '#64748b' }}
-                      tickFormatter={(val: number | string) => `₹${val}`}
+                      tickFormatter={(val: any) => `₹${Number(val).toLocaleString()}`}
                     />
                     <Tooltip
+                      formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
                     />
                     <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
