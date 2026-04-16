@@ -177,7 +177,7 @@ export default function PublicMenuPage() {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedDish} onOpenChange={() => setSelectedDish(null)}>
-        <DialogContent showCloseButton={false} className="max-w-[90vw] w-[400px] max-h-[95vh] p-0 rounded-lg overflow-hidden border-none shadow-2xl flex flex-col">
+        <DialogContent showCloseButton={false} className="max-w-[90vw] w-[400px] max-h-[90vh] p-0 rounded-lg overflow-hidden border-none shadow-2xl flex flex-col">
           {selectedDish && (
             <div className="flex flex-col overflow-y-auto custom-scrollbar">
               <div className="relative aspect-4/3 bg-slate-100">
