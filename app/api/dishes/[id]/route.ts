@@ -30,21 +30,21 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     // Price validation
     if (variants && variants.some((v: any) => v.price <= 0)) {
-        return NextResponse.json({ error: 'All item prices must be greater than 0.' }, { status: 400 });
+      return NextResponse.json({ error: 'All item prices must be greater than 0.' }, { status: 400 });
     }
 
     await connectDB();
 
     // Check for name conflict if name is being changed
     if (name && department) {
-        const existingConflict = await Dish.findOne({
-            _id: { $ne: id },
-            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
-            department
-        });
-        if (existingConflict) {
-            return NextResponse.json({ error: `Item "${name}" already exists in ${department}.` }, { status: 400 });
-        }
+      const existingConflict = await Dish.findOne({
+        _id: { $ne: id },
+        name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+        department
+      });
+      if (existingConflict) {
+        return NextResponse.json({ error: `Item "${name}" already exists in ${department}.` }, { status: 400 });
+      }
     }
 
     const dish = await Dish.findByIdAndUpdate(id, body, { new: true, runValidators: true }).lean();

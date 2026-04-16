@@ -311,7 +311,7 @@ export default function SalariesPage() {
     }, 0);
 
     const pendingCount = salaries.filter(s => s.status === 'partial').length;
-    
+
     // Last 30 days total
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -353,7 +353,7 @@ export default function SalariesPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-amber-50 text-amber-500 rounded-lg">
             <Wallet className="w-6 h-6" />
           </div>
@@ -362,7 +362,7 @@ export default function SalariesPage() {
             <p className="text-xl font-black text-slate-900">₹{stats.totalPaid.toLocaleString('en-IN')}</p>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-50 text-blue-500 rounded-lg">
             <Clock className="w-6 h-6" />
           </div>
@@ -371,7 +371,7 @@ export default function SalariesPage() {
             <p className="text-xl font-black text-slate-900">{stats.pendingCount} <span className="text-xs font-normal text-slate-400 uppercase">Records</span></p>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-green-50 text-green-500 rounded-lg">
             <TrendingUp className="w-6 h-6" />
           </div>
@@ -456,7 +456,7 @@ export default function SalariesPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+      <div className="bg-white border border-slate-100 rounded-lg p-3 shadow-sm flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
         <div className="flex-1 min-w-0 relative group">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
           <input
@@ -467,7 +467,7 @@ export default function SalariesPage() {
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 focus:bg-white transition-all"
           />
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex-1 sm:flex-initial flex items-center gap-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
             <input
@@ -488,9 +488,9 @@ export default function SalariesPage() {
           </div>
 
           <div className="relative flex-1 sm:flex-initial">
-            <select 
-              value={filterStatus} 
-              onChange={e => setFilterStatus(e.target.value)} 
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
               className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 cursor-pointer appearance-none transition"
             >
               <option value="All">All Payments</option>
@@ -501,20 +501,20 @@ export default function SalariesPage() {
           </div>
 
           {(search || filterFrom || filterTo || filterStatus !== 'All') && (
-            <button 
-              onClick={() => { setSearch(''); setFilterFrom(''); setFilterTo(''); setFilterStatus('All'); }} 
+            <button
+              onClick={() => { setSearch(''); setFilterFrom(''); setFilterTo(''); setFilterStatus('All'); }}
               className="text-xs font-bold text-slate-400 hover:text-amber-600 transition p-2 rounded-lg hover:bg-amber-50"
             >
               Reset
             </button>
           )}
         </div>
-        
+
         <div className="lg:ml-auto flex items-center justify-between lg:justify-end gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-           <div className="flex items-center gap-1.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
-           </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
+          </div>
         </div>
       </div>
 

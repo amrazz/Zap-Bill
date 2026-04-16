@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Dish from '@/lib/models/Dish';
 import { getSession } from '@/lib/session';
+import Category from '@/lib/models/Category';
 
 export async function GET() {
   try {
@@ -9,11 +10,28 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await connectDB();
-    const dishes = await Dish.find({ 
-      isAvailable: true,
-      department: session.department 
-    }).sort({ name: 1 }).lean();
+
+    // 1. Find all categories visible to this department (including 'Both' and requested ones)
+    const otherDept = session.department === 'Restaurant' ? 'Bakery' : 'Restaurant';
+    const categories = await Category.find({
+      $or: [
+        { department: session.department },
+        { department: 'Both' },
+        { department: otherDept, commonRequested: true }
+      ]
+    }).select('name').lean();
     
+    const visibleCategoryNames = categories.map(c => c.name);
+
+    // 2. Fetch dishes that are either in this department, marked as 'Both',
+    // OR belong to one of the visible categories (even if the dish department is still fixed)
+    const dishes = await Dish.find({
+      $or: [
+        { department: { $in: [session.department, 'Both'] } },
+        { category: { $in: visibleCategoryNames } }
+      ]
+    }).sort({ name: 1 }).lean();
+
     return NextResponse.json(dishes);
   } catch (error) {
     console.error('GET dishes error:', error);
@@ -27,10 +45,10 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, category, imageUrl, variants, isAvailable } = body;
+    const { name, category, imageUrl, variants, isAvailable, department: bodyDept } = body;
 
-    // Use department from session, ignore what's in the body for security
-    const department = session.department;
+    // Use department from body if it's 'Both', otherwise use session department
+    const department = bodyDept === 'Both' ? 'Both' : session.department;
 
     if (!name || !variants || variants.length === 0) {
       return NextResponse.json(
@@ -49,26 +67,34 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Check if dish already exists in this department
-    const existingDish = await Dish.findOne({ 
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, 
-      department 
-    });
+    // Conflict check logic:
+    // 1. If 'Both', check conflict with ANY item of same name.
+    // 2. If 'Restaurant'/'Bakery', check conflict with same department OR 'Both'.
+    const conflictQuery: any = {
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+    };
+
+    if (department !== 'Both') {
+      conflictQuery.department = { $in: [department, 'Both'] };
+    }
+
+    const existingDish = await Dish.findOne(conflictQuery);
     
     if (existingDish) {
+      const locationLabel = existingDish.department === 'Both' ? 'all menus' : existingDish.department;
       return NextResponse.json(
-        { error: `Item "${name}" already exists in ${department}.` },
+        { error: `Item "${name}" already exists in ${locationLabel}.` },
         { status: 400 }
       );
     }
 
-    const dish = await Dish.create({ 
-      name: name.trim(), 
-      department, 
-      category, 
-      imageUrl, 
-      variants, 
-      isAvailable: isAvailable ?? true 
+    const dish = await Dish.create({
+      name: name.trim(),
+      department,
+      category,
+      imageUrl,
+      variants,
+      isAvailable: isAvailable ?? true
     });
     return NextResponse.json(dish, { status: 201 });
   } catch (error) {

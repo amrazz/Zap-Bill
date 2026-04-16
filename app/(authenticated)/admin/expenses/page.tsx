@@ -52,11 +52,11 @@ export default function ExpensesPage() {
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          description, 
-          amount: Number(amount), 
-          category, 
-          date: new Date(date) 
+        body: JSON.stringify({
+          description,
+          amount: Number(amount),
+          category,
+          date: new Date(date)
         })
       });
 
@@ -87,7 +87,7 @@ export default function ExpensesPage() {
   // Stats
   const stats = useMemo(() => {
     const total = expenses.reduce((s, e) => s + e.amount, 0);
-    
+
     // This month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -100,7 +100,7 @@ export default function ExpensesPage() {
     expenses.forEach(e => {
       catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
     });
-    
+
     let highestCat = 'N/A';
     let maxVal = -1;
     Object.entries(catTotals).forEach(([cat, val]) => {
@@ -145,7 +145,7 @@ export default function ExpensesPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-red-50 text-red-500 rounded-lg">
             <Wallet className="w-6 h-6" />
           </div>
@@ -154,7 +154,7 @@ export default function ExpensesPage() {
             <p className="text-xl font-black text-slate-900">₹{stats.total.toLocaleString('en-IN')}</p>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-amber-50 text-amber-500 rounded-lg">
             <TrendingUp className="w-6 h-6" />
           </div>
@@ -163,7 +163,7 @@ export default function ExpensesPage() {
             <p className="text-xl font-black text-slate-900">₹{stats.monthlyTotal.toLocaleString('en-IN')}</p>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-50 text-blue-500 rounded-lg">
             <Filter className="w-6 h-6" />
           </div>
@@ -239,7 +239,7 @@ export default function ExpensesPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+      <div className="bg-white border border-slate-100 rounded-lg p-3 shadow-sm flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
         <div className="flex-1 min-w-0 relative group">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
           <input
@@ -262,7 +262,7 @@ export default function ExpensesPage() {
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          
+
           <div className="flex-1 sm:flex-initial flex items-center gap-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
             <input
               type="date"
@@ -290,14 +290,14 @@ export default function ExpensesPage() {
             </button>
           )}
         </div>
-        
+
         <div className="lg:ml-auto flex items-center justify-between lg:justify-end gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-           <div className="flex items-center gap-1.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
-           </div>
-           <div className="w-px h-3 bg-slate-200 hidden sm:block mx-1" />
-           <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Total: ₹{totalFiltered.toLocaleString('en-IN')}</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
+          </div>
+          <div className="w-px h-3 bg-slate-200 hidden sm:block mx-1" />
+          <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Total: ₹{totalFiltered.toLocaleString('en-IN')}</span>
         </div>
       </div>
 

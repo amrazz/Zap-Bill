@@ -2,7 +2,7 @@
 import {
   TrendingUp, TrendingDown, Users, Receipt,
   Wallet, DollarSign, ArrowUpRight, ArrowDownRight,
-  Calendar as CalendarIcon, ChevronDown
+  Calendar as CalendarIcon, ChevronDown, QrCode
 } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import {
@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { motion, AnimatePresence } from 'framer-motion';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Stats {
   summary: {
@@ -222,34 +223,34 @@ export default function DashboardPage() {
                 {chartData && chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: '#64748b' }}
-                      dy={10}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: '#64748b' }}
-                      tickFormatter={(val: any) => `₹${Number(val).toLocaleString()}`}
-                    />
-                    <Tooltip
-                      formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                    />
-                    <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
-                    <Area type="monotone" dataKey="expenses" stroke="#cbd5e1" strokeWidth={2} fillOpacity={0} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                      <defs>
+                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                        dy={10}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                        tickFormatter={(val: any) => `₹${Number(val).toLocaleString()}`}
+                      />
+                      <Tooltip
+                        formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                      />
+                      <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
+                      <Area type="monotone" dataKey="expenses" stroke="#cbd5e1" strokeWidth={2} fillOpacity={0} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400 text-xs font-medium">
                     No data available for the selected period
@@ -302,6 +303,74 @@ export default function DashboardPage() {
                       <p className={`text-xl font-black ${summary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>₹{summary.netProfit.toLocaleString()}</p>
                       <span className="text-[10px] text-slate-400 font-medium">INR</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+            {/* Digital Menu Access Card */}
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden relative group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110" />
+              <div className="relative space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-white">
+                    <QrCode className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Digital Menu Access</h3>
+                    <p className="text-sm font-medium text-slate-500 italic">Ready for QR Scan</p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between gap-4">
+                  <div className="flex-1 truncate">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Menu URL</p>
+                    <p className="text-sm font-bold text-slate-700 truncate">{typeof window !== 'undefined' ? `${window.location.origin}/menu` : '/menu'}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/menu`);
+                      toast.success("Menu link copied to clipboard!");
+                    }}
+                    className="h-10 px-4 rounded-lg font-bold border-slate-200 text-slate-600 hover:bg-white hover:border-amber-500 hover:text-amber-500 transition-all shadow-sm shrink-0"
+                  >
+                    Copy Link
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-100 space-y-1">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Status</p>
+                    <p className="text-sm font-black text-emerald-700 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      Live
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-100 space-y-1">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Mode</p>
+                    <p className="text-sm font-black text-blue-700">Lockdown Mode</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Kiosk Mode Info */}
+            <div className="bg-slate-900 p-8 rounded-lg shadow-xl space-y-6 relative overflow-hidden group">
+              <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-500/10 rounded-tl-full blur-3xl" />
+              <div className="relative">
+                <h3 className="text-xl font-black text-white tracking-tight">How it works</h3>
+                <p className="text-slate-400 text-sm mt-2">The customer menu is restricted to the /menu route. Any user without an active staff session will be automatically locked into the digital menu view.</p>
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />
+                    <p className="text-xs text-slate-300 font-medium">Use any online QR generator to link to your domain/menu</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />
+                    <p className="text-xs text-slate-300 font-medium">Fully responsive for 100% of mobile devices and screen sizes</p>
                   </div>
                 </div>
               </div>

@@ -13,14 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 interface BillItem { dishName: string; variantLabel: string; price: number; qty: number; }
-interface Bill { 
-  _id: string; 
-  items: BillItem[]; 
-  subtotal: number; 
-  orderType?: string; 
-  createdAt: string; 
-  isDeleted?: boolean; 
-  deletionReason?: string; 
+interface Bill {
+  _id: string;
+  items: BillItem[];
+  subtotal: number;
+  orderType?: string;
+  createdAt: string;
+  isDeleted?: boolean;
+  deletionReason?: string;
 }
 
 export default function BillsPage() {
@@ -253,7 +253,7 @@ export default function BillsPage() {
                 id="date"
                 className={cn(
                   buttonVariants({ variant: "outline" }),
-                  "w-full md:w-[260px] justify-start text-left font-normal h-10 rounded-xl border-slate-200 shadow-sm",
+                  "w-full md:w-[260px] justify-start text-left font-normal h-10 rounded-lg border-slate-200 shadow-sm",
                   !date && "text-muted-foreground"
                 )}
               >
@@ -271,7 +271,7 @@ export default function BillsPage() {
                   <span>Pick a date range</span>
                 )}
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-xl overflow-hidden shadow-xl border-slate-200" align="end">
+              <PopoverContent className="w-auto p-0 rounded-lg overflow-hidden shadow-xl border-slate-200" align="end">
                 <Calendar
                   initialFocus
                   mode="range"
@@ -288,7 +288,7 @@ export default function BillsPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setDate(undefined)}
-                className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 title="Clear date filter"
               >
                 <X className="h-4 w-4" />
@@ -300,7 +300,7 @@ export default function BillsPage() {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-xl shadow-sm">
+          <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-lg shadow-sm">
             {[
               { label: 'Today', range: { from: startOfDay(new Date()), to: endOfDay(new Date()) } },
               { label: 'Yesterday', range: { from: startOfDay(subDays(new Date(), 1)), to: endOfDay(subDays(new Date(), 1)) } },
@@ -308,19 +308,19 @@ export default function BillsPage() {
               { label: '30 Days', range: { from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) } },
               { label: 'All Time', range: undefined }
             ].map((f) => {
-              const isActive = (!f.range && !date) || 
-                (f.range && date && date.from && date.to && 
-                 isSameDay(f.range.from, date.from) && 
-                 isSameDay(f.range.to, date.to));
-              
+              const isActive = (!f.range && !date) ||
+                (f.range && date && date.from && date.to &&
+                  isSameDay(f.range.from, date.from) &&
+                  isSameDay(f.range.to, date.to));
+
               return (
                 <button
                   key={f.label}
                   onClick={() => setDate(f.range)}
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200",
-                    isActive 
-                      ? "bg-white text-amber-600 shadow-sm ring-1 ring-slate-200" 
+                    isActive
+                      ? "bg-white text-amber-600 shadow-sm ring-1 ring-slate-200"
                       : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
                   )}
                 >
@@ -332,7 +332,7 @@ export default function BillsPage() {
         </div>
 
         {user?.department === 'Admin' && (
-          <div className="flex items-center gap-2 p-1 bg-slate-50 border border-slate-200 rounded-xl w-fit shadow-sm">
+          <div className="flex items-center gap-2 p-1 bg-slate-50 border border-slate-200 rounded-lg w-fit shadow-sm">
             {[
               { id: 'all', label: 'All Bills' },
               { id: 'active', label: 'Active' },
@@ -343,8 +343,8 @@ export default function BillsPage() {
                 onClick={() => setStatusFilter(s.id as any)}
                 className={cn(
                   "px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200",
-                  statusFilter === s.id 
-                    ? "bg-white text-amber-600 shadow-sm ring-1 ring-slate-200" 
+                  statusFilter === s.id
+                    ? "bg-white text-amber-600 shadow-sm ring-1 ring-slate-200"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
                 )}
               >
@@ -479,7 +479,7 @@ export default function BillsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-200">
                 <p className="text-sm text-slate-500 font-medium whitespace-nowrap">
-                  Showing Page <span className="font-bold text-slate-900">{page}</span> of <span className="font-bold text-slate-900">{totalPages}</span> 
+                  Showing Page <span className="font-bold text-slate-900">{page}</span> of <span className="font-bold text-slate-900">{totalPages}</span>
                   <span className="ml-1 text-[10px] opacity-60 uppercase">({totalResults} total)</span>
                 </p>
                 <div className="flex gap-2">

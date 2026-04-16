@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 interface Variant { label: string; price: number; }
-interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery'; category?: string; imageUrl?: string; variants: Variant[]; }
+interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery' | 'Both'; category?: string; imageUrl?: string; variants: Variant[]; }
 interface CartItem { dishId: string; dishName: string; variantLabel: string; price: number; qty: number; }
 
 // ── Printable Bill ──────────────────────────────────────────────
@@ -148,9 +148,9 @@ function VariantModal({ dish, onAdd, onClose }: {
         {/* Variants */}
         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Select Variant</p>
         <div className="flex flex-wrap gap-2 mb-5">
-          {dish.variants.map((v) => (
+          {dish.variants.map((v, idx) => (
             <button
-              key={v.label}
+              key={`${v.label}-${idx}`}
               type="button"
               onClick={() => {
                 setSelected(v);
@@ -224,7 +224,7 @@ function VariantModal({ dish, onAdd, onClose }: {
         {/* Add button */}
         <button
           type="submit"
-          className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-base transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+          className="w-full py-4 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-base transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
         >
           Add to Order
           {selected && <span className="text-amber-100">— ₹{(selected.price * resultKg).toFixed(2)}</span>}
@@ -246,7 +246,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
   const now = new Date();
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="bg-amber-500 px-5 py-4 flex items-center justify-between shrink-0">
           <h3 className="font-bold text-white text-lg flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -321,14 +321,14 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
             variant="outline"
             onClick={onCancel}
             disabled={isSaving}
-            className="h-12 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+            className="h-12 rounded-lg font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
           >
             Edit Order
           </Button>
           <Button
             onClick={onConfirm}
             disabled={isSaving}
-            className="h-12 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/20 text-white transition-all active:scale-[0.98]"
+            className="h-12 rounded-lg font-bold bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/20 text-white transition-all active:scale-[0.98]"
           >
             {isSaving ? (
               <span className="flex items-center gap-2">
@@ -349,6 +349,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
 export default function PosPage() {
   const [user, setUser] = useState<{ username: string; department: 'Restaurant' | 'Bakery' } | null>(null);
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [activeDepartment, setActiveDepartment] = useState<'Restaurant' | 'Bakery'>('Restaurant');
   const [orderType, setOrderType] = useState('Dine-In');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -383,8 +384,8 @@ export default function PosPage() {
           <div style="font-size:14px;color:#000;">
             <div style="font-weight:normal;">${i.dishName}</div>
             ${i.variantLabel !== 'Full' && i.variantLabel !== 'Per Piece'
-              ? `<div style="font-size:11px;">(${i.variantLabel})</div>`
-              : ''}
+        ? `<div style="font-size:11px;">(${i.variantLabel})</div>`
+        : ''}
           </div>
         </td>
         <td style="text-align:center;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">${i.variantLabel.toLowerCase().includes('kg') ? i.qty.toFixed(3) : i.qty}</td>
@@ -512,17 +513,34 @@ export default function PosPage() {
       .then((r) => r.json())
       .then((data) => { setDishes(data); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(data => setCategories(data));
   }, []);
 
-  const filteredDishes = dishes.filter((d) =>
-    d.department === activeDepartment &&
-    (activeCategoryFilter === 'All' || (d.category || "common") === activeCategoryFilter) &&
-    d.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDishes = dishes.filter((d: any) => {
+    const dishCat = (d.category || "Common").trim().toLowerCase();
+    const isDeptMatch = d.department === activeDepartment || d.department === 'Both';
+    // If the category is in our visible categories list, the dish is visible
+    const isCategoryVisible = categories.some(
+      (c: any) => (c.department === activeDepartment || c.department === 'Both') && c.name.trim().toLowerCase() === dishCat
+    );
+    return (isDeptMatch || isCategoryVisible) &&
+      (activeCategoryFilter === 'All' || dishCat === activeCategoryFilter.trim().toLowerCase()) &&
+      d.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
-  const availableCategories = Array.from(
-    new Set(dishes.filter(d => d.department === activeDepartment).map((i) => i.category || "common"))
-  ).sort();
+  const combinedCategories = Array.from(
+    new Set([
+      ...categories
+        .filter((c: any) => c.department === activeDepartment || c.department === 'Both')
+        .map((c: any) => c.name),
+      ...dishes
+        .filter((d: any) => d.department === activeDepartment || d.department === 'Both')
+        .map((i: any) => i.category || "Common")
+    ])
+  ).sort() as string[];
 
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
@@ -661,7 +679,7 @@ export default function PosPage() {
             >
               All Items
             </button>
-            {availableCategories.map((cat) => (
+            {combinedCategories.map((cat: string) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategoryFilter(cat)}
@@ -744,9 +762,9 @@ export default function PosPage() {
         {/* Floating Cart Button (Mobile Only) */}
         {!isCartMobileOpen && cart.length > 0 && (
           <div className="lg:hidden fixed bottom-20 left-0 right-0 px-4 z-40 animate-in fade-in slide-in-from-bottom-5">
-            <button 
+            <button
               onClick={() => setIsCartMobileOpen(true)}
-              className="w-full bg-amber-500 text-white h-14 rounded-2xl shadow-xl shadow-amber-500/30 flex items-center justify-between px-6 font-bold"
+              className="w-full bg-amber-500 text-white h-14 rounded-lg shadow-xl shadow-amber-500/30 flex items-center justify-between px-6 font-bold"
             >
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5" />
@@ -764,7 +782,7 @@ export default function PosPage() {
         )}>
           <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setIsCartMobileOpen(false)}
                 className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600"
               >

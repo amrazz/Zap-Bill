@@ -27,7 +27,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
       .then((u) => {
         setUser(u);
         const isAdminPage = pathname.startsWith("/admin/");
-        const isOpsPage = pathname === "/checkout" || pathname === "/menu";
+        const isOpsPage = pathname === "/checkout" || pathname === "/manage-menu";
 
         if (u.department === "Admin" && isOpsPage) {
           router.replace("/admin/dashboard");
@@ -56,7 +56,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
       ]
       : [
         { href: "/checkout", label: "Checkout", icon: ShoppingCart },
-        { href: "/menu", label: "Menu", icon: Package },
+        { href: "/manage-menu", label: "Menu", icon: Package },
         { href: "/bill-history", label: "History", icon: History },
       ];
 

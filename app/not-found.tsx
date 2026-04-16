@@ -14,8 +14,8 @@ export default function NotFound() {
             404
           </h1>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center rotate-12 group hover:rotate-0 transition-transform duration-500">
-               <span className="text-4xl">🔎</span>
+            <div className="w-20 h-20 bg-white rounded-lg shadow-xl flex items-center justify-center rotate-12 group hover:rotate-0 transition-transform duration-500">
+              <span className="text-4xl">🔎</span>
             </div>
           </div>
         </div>
@@ -28,21 +28,21 @@ export default function NotFound() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className={cn(
               buttonVariants({ variant: "outline" }),
-              "flex-1 h-12 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-white flex items-center justify-center gap-2"
+              "flex-1 h-12 rounded-lg border-slate-200 text-slate-600 font-bold hover:bg-white flex items-center justify-center gap-2"
             )}
           >
             <ArrowLeft className="w-4 h-4" />
             Go Back
           </Link>
-          <Link 
-            href="/checkout" 
+          <Link
+            href="/checkout"
             className={cn(
               buttonVariants({ variant: "default" }),
-              "flex-1 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              "flex-1 h-12 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
             )}
           >
             <Home className="w-4 h-4" />
