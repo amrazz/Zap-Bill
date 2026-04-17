@@ -355,26 +355,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Kiosk Mode Info */}
-            <div className="bg-slate-900 p-8 rounded-lg shadow-xl space-y-6 relative overflow-hidden group">
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-500/10 rounded-tl-full blur-3xl" />
-              <div className="relative">
-                <h3 className="text-xl font-black text-white tracking-tight">How it works</h3>
-                <p className="text-slate-400 text-sm mt-2">The customer menu is restricted to the /menu route. Any user without an active staff session will be automatically locked into the digital menu view.</p>
-                <div className="mt-8 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />
-                    <p className="text-xs text-slate-300 font-medium">Use any online QR generator to link to your domain/menu</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />
-                    <p className="text-xs text-slate-300 font-medium">Fully responsive for 100% of mobile devices and screen sizes</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </div>           
           </div>
         </motion.div>
       </AnimatePresence>
