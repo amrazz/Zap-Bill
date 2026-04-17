@@ -308,55 +308,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-            {/* Digital Menu Access Card */}
-            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden relative group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110" />
-              <div className="relative space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-white">
-                    <QrCode className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Digital Menu Access</h3>
-                    <p className="text-sm font-medium text-slate-500 italic">Ready for QR Scan</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between gap-4">
-                  <div className="flex-1 truncate">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Menu URL</p>
-                    <p className="text-sm font-bold text-slate-700 truncate">{typeof window !== 'undefined' ? `${window.location.origin}/menu` : '/menu'}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/menu`);
-                      toast.success("Menu link copied to clipboard!");
-                    }}
-                    className="h-10 px-4 rounded-lg font-bold border-slate-200 text-slate-600 hover:bg-white hover:border-amber-500 hover:text-amber-500 transition-all shadow-sm shrink-0"
-                  >
-                    Copy Link
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-100 space-y-1">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Status</p>
-                    <p className="text-sm font-black text-emerald-700 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      Live
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-100 space-y-1">
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Mode</p>
-                    <p className="text-sm font-black text-blue-700">Lockdown Mode</p>
-                  </div>
-                </div>
-              </div>
-            </div>           
-          </div>
         </motion.div>
       </AnimatePresence>
     </div>
