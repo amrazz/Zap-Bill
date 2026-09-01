@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Salary from '@/lib/models/Salary';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { salaries, salaryPayments } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.department !== 'Admin') {
+    if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -16,26 +17,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    await connectDB();
-    const salary = await Salary.findById(id);
+    const salary = db.select().from(salaries).where(eq(salaries.id, id)).get();
     if (!salary) {
       return NextResponse.json({ error: 'Salary record not found' }, { status: 404 });
     }
 
-    // Push the new installment
-    salary.payments.push({ amount: Number(amount), paidAt: new Date(paidAt), notes });
+    db.insert(salaryPayments).values({ salaryId: id, amount: Number(amount), paidAt: new Date(paidAt).toISOString(), notes }).run();
 
-    // Recalculate status: if totalAmount is set, check if fully covered
-    const totalPaid = salary.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
-    if (!salary.totalAmount || totalPaid >= salary.totalAmount) {
-      salary.status = 'paid';
-    }
+    const payments = db.select().from(salaryPayments).where(eq(salaryPayments.salaryId, id)).all();
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const status = !salary.totalAmount || totalPaid >= salary.totalAmount ? 'paid' : 'partial';
 
-    // Keep legacy amount field updated to total paid so far
-    salary.amount = totalPaid;
+    const updated = db.update(salaries).set({ status }).where(eq(salaries.id, id)).returning().get();
 
-    await salary.save();
-    return NextResponse.json(salary);
+    return NextResponse.json({
+      _id: updated.id,
+      staffName: updated.staffName,
+      month: updated.month,
+      year: updated.year,
+      totalAmount: updated.totalAmount,
+      status: updated.status,
+      createdAt: updated.createdAt,
+      payments: payments.map((p) => ({ amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
+    });
   } catch (error) {
     console.error('POST salary pay error:', error);
     return NextResponse.json({ error: 'Failed to add payment' }, { status: 500 });

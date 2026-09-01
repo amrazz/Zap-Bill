@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { toast } from 'sonner';
 import { ShoppingCart, ArrowLeft, Plus, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatMoney } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 interface Variant { label: string; price: number; }
-interface Dish { _id: string; name: string; department: 'Restaurant' | 'Bakery' | 'Both'; category?: string; imageUrl?: string; variants: Variant[]; }
+interface Dish { _id: string; name: string; category?: string; imageUrl?: string; variants: Variant[]; }
 interface CartItem { dishId: string; dishName: string; variantLabel: string; price: number; qty: number; }
 
 // ── Printable Bill ──────────────────────────────────────────────
@@ -59,8 +59,8 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
               <td className="py-1 text-center">
                 {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
               </td>
-              <td className="py-1 text-right">₹{item.price.toFixed(2)}</td>
-              <td className="py-1 text-right">₹{(item.price * item.qty).toFixed(2)}</td>
+              <td className="py-1 text-right">₹{formatMoney(item.price)}</td>
+              <td className="py-1 text-right">₹{formatMoney(item.price * item.qty)}</td>
             </tr>
           ))}
         </tbody>
@@ -69,11 +69,11 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
       <div className="border-t border-dashed border-black pt-2 space-y-1">
         <div className="flex justify-between">
           <span>Subtotal</span>
-          <span>₹{subtotal.toFixed(2)}</span>
+          <span>₹{formatMoney(subtotal)}</span>
         </div>
         <div className="flex justify-between font-bold text-xs mt-1 border-t border-black pt-1">
           <span>GRAND TOTAL</span>
-          <span>₹{subtotal.toFixed(2)}</span>
+          <span>₹{formatMoney(subtotal)}</span>
         </div>
       </div>
 
@@ -198,9 +198,12 @@ function VariantModal({ dish, onAdd, onClose }: {
               ref={inputRef}
               type="number"
               step={isWeightBased ? "any" : "1"}
-              min="0.001"
+              min={isWeightBased ? "0.001" : "1"}
               value={qty}
-              onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value) || 0;
+                setQty(isWeightBased ? raw : Math.max(0, Math.round(raw)));
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -227,7 +230,7 @@ function VariantModal({ dish, onAdd, onClose }: {
           className="w-full py-4 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-base transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
         >
           Add to Order
-          {selected && <span className="text-amber-100">— ₹{(selected.price * resultKg).toFixed(2)}</span>}
+          {selected && <span className="text-amber-100">— ₹{formatMoney(selected.price * resultKg)}</span>}
         </button>
       </form>
     </div>
@@ -291,17 +294,17 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
               <tbody>
                 {items.map((item, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 text-slate-900">
-                    <td className="py-2">
+                    <td className="py-2 align-top">
                       <p className="font-bold">{item.dishName}</p>
                       {item.variantLabel !== 'Full' && item.variantLabel !== 'Per Piece' && (
                         <p className="text-[9px] font-normal">({item.variantLabel})</p>
                       )}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="py-2 text-right align-top">
                       {item.variantLabel.toLowerCase().includes('kg') ? item.qty.toFixed(3) : item.qty}
                     </td>
-                    <td className="py-2 text-right">₹{item.price.toFixed(2)}</td>
-                    <td className="py-2 text-right font-medium">₹{(item.price * item.qty).toFixed(2)}</td>
+                    <td className="py-2 text-right align-top">₹{formatMoney(item.price)}</td>
+                    <td className="py-2 text-right align-top font-medium">₹{formatMoney(item.price * item.qty)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -310,7 +313,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
             <div className="border-t-2 border-slate-900 pt-3 space-y-1">
               <div className="flex justify-between font-bold text-sm text-slate-900">
                 <span>GRAND TOTAL</span>
-                <span>₹{subtotal.toFixed(2)}</span>
+                <span>₹{formatMoney(subtotal)}</span>
               </div>
             </div>
           </div>
@@ -363,21 +366,9 @@ export default function PosPage() {
   const [lastBillNumber, setLastBillNumber] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Define direct print logic — uses a hidden iframe so the system print
-  // dialog always opens at full screen size (no clipped popup issue).
-  const triggerDirectPrint = (bill: { items: any[], subtotal: number, billNumber: string, orderType: string, department: string }) => {
-    // Remove any previous iframe
-    document.getElementById('zb-print-frame')?.remove();
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'zb-print-frame';
-    // Visually hidden but still in the DOM so printing works
-    Object.assign(iframe.style, {
-      position: 'fixed', top: '-9999px', left: '-9999px',
-      width: '80mm', height: '1px', border: 'none', visibility: 'hidden',
-    });
-    document.body.appendChild(iframe);
-
+  // Builds the printable receipt as a standalone HTML document — shared by
+  // both the Electron native print path and the browser/dev-mode fallback below.
+  const buildReceiptHtml = (bill: { items: any[], subtotal: number, billNumber: string, orderType: string, department: string }) => {
     const rows = bill.items.map(i => `
       <tr>
         <td style="padding:4px 0;vertical-align:top;">
@@ -389,14 +380,12 @@ export default function PosPage() {
           </div>
         </td>
         <td style="text-align:center;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">${i.variantLabel.toLowerCase().includes('kg') ? i.qty.toFixed(3) : i.qty}</td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">&#8377;${i.price.toFixed(2)}</td>
-        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;font-weight:bold;color:#000;">&#8377;${(i.price * i.qty).toFixed(2)}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;color:#000;">&#8377;${formatMoney(i.price)}</td>
+        <td style="text-align:right;font-size:13px;vertical-align:top;padding-top:4px;font-weight:bold;color:#000;">&#8377;${formatMoney(i.price * i.qty)}</td>
       </tr>
     `).join('');
 
-    const doc = iframe.contentDocument!;
-    doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
       /* ── Page: 80mm thermal, zero browser margins ── */
       @page {
         size: 80mm auto;
@@ -463,11 +452,11 @@ export default function PosPage() {
     <!-- Totals -->
     <div class="dash" style="margin-top:4px;"></div>
     <div class="row" style="font-size:12px;padding:2px 0;">
-      <span>Subtotal</span><span>&#8377;${bill.subtotal.toFixed(2)}</span>
+      <span>Subtotal</span><span>&#8377;${formatMoney(bill.subtotal)}</span>
     </div>
     <div class="solid"></div>
     <div class="row" style="font-weight:bold;font-size:15px;padding:6px 0 0;">
-      <span>GRAND TOTAL</span><span>&#8377;${bill.subtotal.toFixed(2)}</span>
+      <span>GRAND TOTAL</span><span>&#8377;${formatMoney(bill.subtotal)}</span>
     </div>
 
     <!-- Footer -->
@@ -476,26 +465,57 @@ export default function PosPage() {
       Thank you, Visit Again!
     </div>
 
-    </body></html>`);
-    doc.close();
+    </body></html>`;
+  };
 
-    // Wait for fonts/layout to settle, then print
-    iframe.onload = () => {
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        // Clean up after the dialog closes
-        setTimeout(() => iframe.remove(), 2000);
-      }, 250);
-    };
-    // Fallback if onload already fired
-    setTimeout(() => {
-      if (document.getElementById('zb-print-frame')) {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => iframe.remove(), 2000);
-      }
-    }, 600);
+  // Prints the receipt and resolves with whether it actually went through.
+  // In the packaged Electron app this calls the native print API (electron/main.js),
+  // which reports true success/cancel/failure — the caller only saves the bill
+  // once this resolves successfully, so a cancelled print never gets counted as a sale.
+  // In a plain browser (dev mode) there's no such signal, so this falls back to
+  // the 'afterprint' event, which fires once the print dialog closes either way.
+  const printReceipt = (bill: { items: any[], subtotal: number, billNumber: string, orderType: string, department: string }): Promise<{ success: boolean; error?: string }> => {
+    const html = buildReceiptHtml(bill);
+
+    if (window.electronAPI?.printReceipt) {
+      return window.electronAPI.printReceipt(html);
+    }
+
+    return new Promise((resolve) => {
+      document.getElementById('zb-print-frame')?.remove();
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'zb-print-frame';
+      Object.assign(iframe.style, {
+        position: 'fixed', top: '-9999px', left: '-9999px',
+        width: '80mm', height: '1px', border: 'none', visibility: 'hidden',
+      });
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentDocument!;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      let settled = false;
+      const finish = (success: boolean) => {
+        if (settled) return;
+        settled = true;
+        setTimeout(() => iframe.remove(), 500);
+        resolve({ success });
+      };
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          const win = iframe.contentWindow;
+          win?.addEventListener('afterprint', () => finish(true));
+          win?.focus();
+          win?.print();
+          // Not all browsers fire afterprint reliably — don't block forever.
+          setTimeout(() => finish(true), 5000);
+        }, 250);
+      };
+    });
   };
 
   useEffect(() => {
@@ -521,24 +541,14 @@ export default function PosPage() {
 
   const filteredDishes = dishes.filter((d: any) => {
     const dishCat = (d.category || "Common").trim().toLowerCase();
-    const isDeptMatch = d.department === activeDepartment || d.department === 'Both';
-    // If the category is in our visible categories list, the dish is visible
-    const isCategoryVisible = categories.some(
-      (c: any) => (c.department === activeDepartment || c.department === 'Both') && c.name.trim().toLowerCase() === dishCat
-    );
-    return (isDeptMatch || isCategoryVisible) &&
-      (activeCategoryFilter === 'All' || dishCat === activeCategoryFilter.trim().toLowerCase()) &&
+    return (activeCategoryFilter === 'All' || dishCat === activeCategoryFilter.trim().toLowerCase()) &&
       d.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const combinedCategories = Array.from(
     new Set([
-      ...categories
-        .filter((c: any) => c.department === activeDepartment || c.department === 'Both')
-        .map((c: any) => c.name),
-      ...dishes
-        .filter((d: any) => d.department === activeDepartment || d.department === 'Both')
-        .map((i: any) => i.category || "Common")
+      ...categories.map((c: any) => c.name),
+      ...dishes.map((i: any) => i.category || "Common")
     ])
   ).sort() as string[];
 
@@ -571,7 +581,18 @@ export default function PosPage() {
 
   async function finalizeOrder() {
     setIsSaving(true);
+    // Snapshot the cart before printing — printing happens first, and only a
+    // successful print leads to the bill being saved (an order is only "complete"
+    // once its bill has actually printed, not just been queued).
+    const printData = { items: [...cart], subtotal, billNumber: lastBillNumber, orderType, department: activeDepartment };
+
     try {
+      const printResult = await printReceipt(printData);
+      if (!printResult.success) {
+        toast.error("Couldn't print the receipt — check that a printer is connected and set as default. The order was not saved.");
+        return;
+      }
+
       const res = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -579,33 +600,15 @@ export default function PosPage() {
       });
 
       if (res.ok) {
-        // Capture current cart data for printing BEFORE clearing state
-        const printData = {
-          items: [...cart],
-          subtotal,
-          billNumber: lastBillNumber,
-          orderType,
-          department: activeDepartment
-        };
-
-        // 1. Reset state and close modal immediately so UI feels responsive
         setCart([]);
         setShowPreview(false);
-        setIsSaving(false);
-
-        // 2. Trigger print with a slight delay to ensure the modal unmounts
-        // This prevents the browser from freezing on the "Saving..." screen
-        setTimeout(() => {
-          triggerDirectPrint(printData);
-        }, 150);
-
-        toast.success("Bill saved and printed successfully");
+        toast.success("Bill printed and saved successfully");
       } else {
-        toast.error("Failed to save bill. Please try again.");
-        setIsSaving(false);
+        toast.error("Bill printed, but saving the order failed. Please note it down and contact support.");
       }
     } catch (err) {
-      toast.error("An error occurred while saving.");
+      toast.error("An error occurred while printing/saving.");
+    } finally {
       setIsSaving(false);
     }
   }
@@ -815,9 +818,13 @@ export default function PosPage() {
                     <input
                       type="number"
                       step={item.variantLabel.toLowerCase().includes('kg') ? "0.001" : "1"}
-                      min="0.001"
+                      min={item.variantLabel.toLowerCase().includes('kg') ? "0.001" : "1"}
                       value={item.qty}
-                      onChange={(e) => setAbsQty(idx, parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const raw = parseFloat(e.target.value) || 0;
+                        const isKg = item.variantLabel.toLowerCase().includes('kg');
+                        setAbsQty(idx, isKg ? raw : Math.max(0, Math.round(raw)));
+                      }}
                       className="w-10 text-center text-sm font-bold text-slate-800 bg-transparent border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button onClick={() => updateQty(idx, item.variantLabel.toLowerCase().includes('kg') ? 0.1 : 1)} className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm flex items-center justify-center transition">+</button>
@@ -825,7 +832,7 @@ export default function PosPage() {
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800 w-14 text-right">₹{(item.price * item.qty).toFixed(2)}</span>
+                  <span className="text-sm font-semibold text-slate-800 w-14 text-right">₹{formatMoney(item.price * item.qty)}</span>
                 </div>
               ))
             )}
@@ -851,7 +858,7 @@ export default function PosPage() {
               <span className="text-sm text-slate-600">{cart.length} item(s)</span>
               <div className="text-right">
                 <p className="text-xs text-slate-400">Grand Total</p>
-                <p className="text-2xl font-bold text-slate-900">₹{subtotal.toFixed(0)}</p>
+                <p className="text-2xl font-bold text-slate-900">₹{formatMoney(subtotal)}</p>
               </div>
             </div>
             <button

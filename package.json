@@ -2,46 +2,101 @@
   "name": "zapbill",
   "version": "0.1.0",
   "private": true,
+  "description": "Offline billing and menu management for restaurants and bakeries",
+  "author": "Zapbill",
+  "main": "electron/main.js",
+  "department": "Restaurant",
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:mongo": "tsx scripts/migrate-from-mongo.ts",
+    "electron:dev": "electron electron/main.js",
+    "prebuild:electron": "next build --webpack && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/ && electron-rebuild --module-dir .next/standalone --only better-sqlite3 --platform win32 --arch x64 --version $(node -p \"require('electron/package.json').version\")",
+    "dist:win:restaurant": "npm run prebuild:electron && electron-builder --win --config.extraMetadata.department=Restaurant --config.productName=\"Zapbill Restaurant\" --config.appId=com.zapbill.restaurant",
+    "dist:win:bakery": "npm run prebuild:electron && electron-builder --win --config.extraMetadata.department=Bakery --config.productName=\"Zapbill Bakery\" --config.appId=com.zapbill.bakery",
+    "prebuild:electron:linux": "next build --webpack && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/ && electron-rebuild --module-dir .next/standalone --only better-sqlite3 --version $(node -p \"require('electron/package.json').version\")",
+    "dist:linux:restaurant": "npm run prebuild:electron:linux && electron-builder --linux --config.extraMetadata.department=Restaurant --config.productName=\"Zapbill Restaurant\" --config.appId=com.zapbill.restaurant",
+    "dist:linux:bakery": "npm run prebuild:electron:linux && electron-builder --linux --config.extraMetadata.department=Bakery --config.productName=\"Zapbill Bakery\" --config.appId=com.zapbill.bakery"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
-    "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.38.0",
     "jose": "^6.2.2",
     "lucide-react": "^0.577.0",
-    "mongoose": "^9.3.1",
-    "next": "16.2.0",
+    "mongodb": "^7.6.0",
+    "next": "^16.3.4",
     "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-day-picker": "^9.14.0",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
     "server-only": "^0.0.1",
-    "shadcn": "^4.1.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
-    "eslint-config-next": "16.2.0",
+    "eslint-config-next": "^16.3.4",
+    "shadcn": "^4.1.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.26",
+    "serialize-javascript": "^7.1.1",
+    "picomatch": "^4.0.7",
+    "qs": "^6.16.0",
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0"
+  },
+  "build": {
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next",
+        "to": "next",
+        "filter": ["standalone/**/*"]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/web-app-manifest-512x512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "public/web-app-manifest-512x512.png",
+      "category": "Office",
+      "synopsis": "Offline billing and menu management",
+      "maintainer": "Zapbill <support@zapbill.app>"
+    }
   }
 }

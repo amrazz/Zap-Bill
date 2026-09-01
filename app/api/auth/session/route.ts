@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
+import { getAppSettings } from '@/lib/db/client';
 
 export async function GET() {
   try {
@@ -7,10 +8,12 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const { department } = getAppSettings();
     return NextResponse.json({
       userId: session.userId,
       username: session.username,
-      department: session.department
+      role: session.role,
+      department,
     });
   } catch (error) {
     console.error('Session API error:', error);

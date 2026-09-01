@@ -1,9 +1,7 @@
 import 'server-only';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-
-const secretKey = process.env.SESSION_SECRET!;
-const encodedKey = new TextEncoder().encode(secretKey);
+import { getAppSettings } from '@/lib/db/client';
 
 const COOKIE_NAME = 'zapbill_session';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -11,8 +9,13 @@ const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export interface SessionPayload {
   userId: string;
   username: string;
-  department: 'Restaurant' | 'Bakery' | 'Admin';
+  role: 'admin' | 'staff';
   expiresAt: Date;
+}
+
+function encodedKey(): Uint8Array {
+  const { sessionSecret } = getAppSettings();
+  return new TextEncoder().encode(sessionSecret);
 }
 
 export async function encrypt(payload: SessionPayload): Promise<string> {
@@ -20,21 +23,21 @@ export async function encrypt(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(encodedKey);
+    .sign(encodedKey());
 }
 
 export async function decrypt(token: string | undefined = ''): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, encodedKey, { algorithms: ['HS256'] });
+    const { payload } = await jwtVerify(token, encodedKey(), { algorithms: ['HS256'] });
     return payload as unknown as SessionPayload;
   } catch {
     return null;
   }
 }
 
-export async function createSession(userId: string, username: string, department: 'Restaurant' | 'Bakery' | 'Admin'): Promise<void> {
+export async function createSession(userId: string, username: string, role: 'admin' | 'staff'): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-  const token = await encrypt({ userId, username, department, expiresAt });
+  const token = await encrypt({ userId, username, role, expiresAt });
   const cookieStore = await cookies();
 
   cookieStore.set(COOKIE_NAME, token, {

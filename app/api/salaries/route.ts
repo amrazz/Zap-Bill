@@ -1,19 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Salary from '@/lib/models/Salary';
-import { getSession } from '@/lib/session';
+import { desc, inArray } from 'drizzle-orm';
 import { format } from 'date-fns';
+import { db } from '@/lib/db/client';
+import { salaries, salaryPayments } from '@/lib/db/schema';
+import { getSession } from '@/lib/session';
+
+function serializeSalary(salary: typeof salaries.$inferSelect, payments: (typeof salaryPayments.$inferSelect)[]) {
+  return {
+    _id: salary.id,
+    staffName: salary.staffName,
+    month: salary.month,
+    year: salary.year,
+    totalAmount: salary.totalAmount,
+    status: salary.status,
+    createdAt: salary.createdAt,
+    payments: payments.map((p) => ({ amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
+  };
+}
 
 export async function GET() {
   try {
     const session = await getSession();
-    if (!session || session.department !== 'Admin') {
+    if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectDB();
-    const salaries = await Salary.find().sort({ createdAt: -1 }).limit(200).lean();
-    return NextResponse.json(salaries);
+    const allSalaries = db.select().from(salaries).orderBy(desc(salaries.createdAt)).limit(200).all();
+    const allPayments = allSalaries.length
+      ? db.select().from(salaryPayments).where(inArray(salaryPayments.salaryId, allSalaries.map((s) => s.id))).all()
+      : [];
+
+    const result = allSalaries.map((s) => serializeSalary(s, allPayments.filter((p) => p.salaryId === s.id)));
+    return NextResponse.json(result);
   } catch (error) {
     console.error('GET salaries error:', error);
     return NextResponse.json({ error: 'Failed to fetch salaries' }, { status: 500 });
@@ -23,16 +41,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || session.department !== 'Admin') {
+    if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { staffName, paidAmount, totalAmount, paidAt, notes } = await request.json();
-    
-    // Improved validation
+
     if (!staffName) return NextResponse.json({ error: 'Staff name is required' }, { status: 400 });
-    if (paidAmount === undefined || paidAmount === null || paidAmount === "") {
-       return NextResponse.json({ error: 'Paid amount is required' }, { status: 400 });
+    if (paidAmount === undefined || paidAmount === null || paidAmount === '') {
+      return NextResponse.json({ error: 'Paid amount is required' }, { status: 400 });
     }
     if (!paidAt) return NextResponse.json({ error: 'Payment date is required' }, { status: 400 });
 
@@ -49,21 +66,19 @@ export async function POST(request: NextRequest) {
     const total = totalAmount ? Number(totalAmount) : undefined;
     const status = total && paid < total ? 'partial' : 'paid';
 
-    await connectDB();
-    const salary = await Salary.create({
-      staffName,
-      month: format(payDate, 'MMMM'),
-      year: payDate.getFullYear(),
-      totalAmount: total,
-      payments: [{ amount: paid, paidAt: payDate, notes }],
-      status,
-      // Legacy fields for backward compatibility display
-      amount: paid,
-      paidAt: payDate,
-      notes,
-    });
+    const salary = db
+      .insert(salaries)
+      .values({ staffName, month: format(payDate, 'MMMM'), year: payDate.getFullYear(), totalAmount: total, status })
+      .returning()
+      .get();
 
-    return NextResponse.json(salary, { status: 201 });
+    const payment = db
+      .insert(salaryPayments)
+      .values({ salaryId: salary.id, amount: paid, paidAt: payDate.toISOString(), notes })
+      .returning()
+      .get();
+
+    return NextResponse.json(serializeSalary(salary, [payment]), { status: 201 });
   } catch (error) {
     console.error('POST salary error:', error);
     return NextResponse.json({ error: 'Failed to create salary record' }, { status: 500 });

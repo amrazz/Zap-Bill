@@ -1,0 +1,39 @@
+name: Build Windows Installers
+
+# Builds the Restaurant and Bakery desktop installers on a real Windows machine.
+# Native modules (better-sqlite3) must be compiled for Windows + this Electron
+# version, which isn't possible from the Linux/macOS dev machines this repo is
+# usually worked on — hence doing it here instead.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Restaurant installer
+        run: npm run dist:win:restaurant
+
+      - name: Build Bakery installer
+        run: npm run dist:win:bakery
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapbill-windows-installers
+          path: dist/*.exe

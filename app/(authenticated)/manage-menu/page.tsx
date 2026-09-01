@@ -12,7 +12,6 @@ import {
   Check,
   Trash2,
   Pencil,
-  LayoutDashboard,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -36,7 +35,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Combobox,
   ComboboxInput,
@@ -53,7 +51,6 @@ interface Variant {
 interface Dish {
   _id: string;
   name: string;
-  department: "Restaurant" | "Bakery" | "Both";
   category: string;
   imageUrl?: string;
   isAvailable: boolean;
@@ -62,10 +59,6 @@ interface Dish {
 interface CategoryData {
   _id: string;
   name: string;
-  department: "Restaurant" | "Bakery" | "Both";
-  isCommon: boolean;
-  commonRequested: boolean;
-  requestedBy: string | null;
 }
 
 const PRESET_VARIANTS = {
@@ -82,7 +75,6 @@ const PRESET_VARIANTS = {
 function emptyDish() {
   return {
     name: "",
-    department: "Restaurant" as "Restaurant" | "Bakery" | "Both",
     category: "Common",
     imageUrl: "",
     variants: [
@@ -96,7 +88,8 @@ function emptyDish() {
 export default function AdminPage() {
   const [user, setUser] = useState<{
     username: string;
-    department: "Restaurant" | "Bakery" | "Both";
+    role: string;
+    department: string;
   } | null>(null);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +116,6 @@ export default function AdminPage() {
   const [editingCatName, setEditingCatName] = useState("");
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [isCategoryManagementOpen, setIsCategoryManagementOpen] = useState(false);
-  const [activeCatTab, setActiveCatTab] = useState<'mine' | 'explore'>('mine');
 
   const fetchCategories = async () => {
     try {
@@ -209,14 +201,11 @@ export default function AdminPage() {
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then((u) => {
-        if (u.department) {
-          setUser(u);
-          setForm((prev) => ({ ...prev, department: u.department }));
-        }
+        if (u.department) setUser(u);
       });
     fetchDishes();
     fetchCategories();
-  }, [user?.department]); // Refetch when department changes
+  }, []);
 
   function handleVariantChange(
     idx: number,
@@ -254,7 +243,7 @@ export default function AdminPage() {
 
   function openAddModal() {
     setEditId(null);
-    setForm({ ...emptyDish(), department: user?.department ?? "Restaurant" });
+    setForm(emptyDish());
     setError("");
     setIsModalOpen(true);
   }
@@ -263,7 +252,6 @@ export default function AdminPage() {
     setEditId(dish._id);
     setForm({
       name: dish.name,
-      department: dish.department,
       category: dish.category || "common",
       imageUrl: dish.imageUrl || "",
       variants: dish.variants.map((v) => ({ ...v, price: String(v.price) })),
@@ -318,8 +306,8 @@ export default function AdminPage() {
       label: v.label.trim(),
       price: Number(v.price),
     }));
-    if (!form.name.trim() || !form.department) {
-      setError("Name and department are required.");
+    if (!form.name.trim()) {
+      setError("Name is required.");
       return;
     }
     if (variants.some((v) => !v.label || isNaN(v.price) || v.price <= 0)) {
@@ -335,7 +323,6 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
-          department: form.department,
           category: form.category.trim() || "common",
           imageUrl: form.imageUrl?.trim() || undefined,
           variants,
@@ -385,22 +372,14 @@ export default function AdminPage() {
     }
   }
 
-  const filteredDishes = dishes.filter((d) => {
-    const dishCat = (d.category || "Common").trim().toLowerCase();
-    const isDeptMatch = !user || d.department === user.department || d.department === "Both";
-    // If the category is in our visible categories list, the dish is visible
-    const isCategoryVisible = categories.some(
-      (c) => (c.department === user?.department || c.department === "Both") && c.name.trim().toLowerCase() === dishCat
-    );
-    return (isDeptMatch || isCategoryVisible) && d.name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filteredDishes = dishes.filter((d) =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const DishListSection = ({ items, allCategories }: { items: Dish[], allCategories: CategoryData[] }) => {
     const combinedCategories = Array.from(
       new Set([
-        ...allCategories
-          .filter(c => c.department === user?.department || c.department === 'Both')
-          .map(c => c.name),
+        ...allCategories.map(c => c.name),
         ...items.map(i => i.category || "Common")
       ])
     ).sort();
@@ -549,23 +528,14 @@ export default function AdminPage() {
               className="pl-10 h-10 rounded-lg"
             />
           </div>
-          {user?.department && (
-            <div className="relative">
-              <Button
-                variant="outline"
-                onClick={() => setIsCategoryManagementOpen(true)}
-                className="h-10 rounded-lg px-4 font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
-              >
-                <Utensils className="w-4 h-4" />
-                Manage Category
-              </Button>
-              {categories.filter(c => c.commonRequested && c.requestedBy !== user.department).length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-in zoom-in-50 duration-300">
-                  {categories.filter(c => c.commonRequested && c.requestedBy !== user.department).length}
-                </span>
-              )}
-            </div>
-          )}
+          <Button
+            variant="outline"
+            onClick={() => setIsCategoryManagementOpen(true)}
+            className="h-10 rounded-lg px-4 font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
+          >
+            <Utensils className="w-4 h-4" />
+            Manage Category
+          </Button>
           <Button
             onClick={openAddModal}
             className="h-10 rounded-lg px-6 font-bold bg-amber-500 hover:bg-amber-600 text-white"
@@ -618,43 +588,6 @@ export default function AdminPage() {
               onSubmit={handleSubmit}
               className="p-6 space-y-6"
             >
-              {!user?.department && (
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 space-y-3">
-                  <Label className="text-sm font-semibold text-slate-800">
-                    Department
-                  </Label>
-                  <RadioGroup
-                    value={form.department}
-                    onValueChange={(v: string) =>
-                      setForm((p) => ({
-                        ...p,
-                        department: v as "Restaurant" | "Bakery",
-                      }))
-                    }
-                    className="flex gap-6"
-                  >
-                    <div className="flex items-center gap-2 cursor-pointer group">
-                      <RadioGroupItem value="Restaurant" id="restaurant" />
-                      <Label
-                        htmlFor="restaurant"
-                        className="cursor-pointer font-medium text-slate-700 group-hover:text-slate-900 transition"
-                      >
-                        Restaurant
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2 cursor-pointer group">
-                      <RadioGroupItem value="Bakery" id="bakery" />
-                      <Label
-                        htmlFor="bakery"
-                        className="cursor-pointer font-medium text-slate-700 group-hover:text-slate-900 transition"
-                      >
-                        Bakery
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <Label
@@ -729,9 +662,9 @@ export default function AdminPage() {
                             const newCat = await res.json();
                             if (res.ok) {
                               setCategories((prev) => {
-                                if (prev.includes(newCat.name)) return prev;
-                                return [...prev, newCat.name].sort((a, b) =>
-                                  a.localeCompare(b),
+                                if (prev.some((c) => c._id === newCat._id)) return prev;
+                                return [...prev, newCat].sort((a, b) =>
+                                  a.name.localeCompare(b.name),
                                 );
                               });
                             }
@@ -867,7 +800,7 @@ export default function AdminPage() {
                         disabled={
                           uploadingImage ||
                           !form.imageUrl ||
-                          form.imageUrl.includes("cloudinary.com")
+                          form.imageUrl.startsWith("/api/uploads/")
                         }
                         onClick={async () => {
                           setUploadingImage(true);
@@ -1017,7 +950,7 @@ export default function AdminPage() {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              item <span className="font-bold text-slate-900">"{itemToDelete?.name}"</span> from your menu.
+              item <span className="font-bold text-slate-900">&quot;{itemToDelete?.name}&quot;</span> from your menu.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1035,276 +968,101 @@ export default function AdminPage() {
       <Dialog open={isCategoryManagementOpen} onOpenChange={setIsCategoryManagementOpen}>
         <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-lg border-none shadow-2xl bg-white">
           <DialogHeader className="p-6 pb-4 bg-slate-50/50 border-b border-slate-100">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-                <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-                  <Utensils className="w-5 h-5" />
-                </div>
-                Categories
-              </DialogTitle>
-            </div>
-
-            {/* Tab Switcher */}
-            <div className="flex gap-1 mt-6 bg-slate-100 p-1 rounded-lg">
-              <button
-                onClick={() => setActiveCatTab('mine')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${activeCatTab === 'mine'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-                  }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                Our Categories
-              </button>
-              <button
-                onClick={() => setActiveCatTab('explore')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${activeCatTab === 'explore'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-                  }`}
-              >
-                <Search className="w-3.5 h-3.5" />
-                Explore {user?.department === 'Restaurant' ? 'Bakery' : 'Restaurant'}
-              </button>
-            </div>
+            <DialogTitle className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+              <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+                <Utensils className="w-5 h-5" />
+              </div>
+              Categories
+            </DialogTitle>
           </DialogHeader>
 
           <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
-            {activeCatTab === 'mine' ? (
-              <div className="p-6 space-y-8">
-                {/* Incoming Requests Section */}
-                {categories.filter(c => c.commonRequested && c.requestedBy !== user?.department).length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-[11px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2 px-1">
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                      Approval Requests
-                    </h3>
-                    <div className="grid gap-2.5">
-                      {categories.filter(c => c.commonRequested && c.requestedBy !== user?.department).map(cat => (
-                        <div key={cat._id} className="bg-red-50/40 border border-red-100 rounded-lg p-4 flex items-center justify-between group transition-all hover:bg-red-50">
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{cat.name}</p>
-                            <p className="text-[10px] text-red-600 font-bold uppercase tracking-tight mt-0.5">Requested by {cat.requestedBy}</p>
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <Button
-                              size="sm"
-                              onClick={async () => {
-                                const res = await fetch('/api/categories/resolve', {
-                                  method: 'POST',
-                                  body: JSON.stringify({ id: cat._id, action: 'accept' })
-                                });
-                                if (res.ok) {
-                                  toast.success(`"${cat.name}" is now common!`);
-                                  fetchCategories();
-                                }
-                              }}
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 px-4 rounded-lg font-bold text-[11px] shadow-sm shadow-emerald-500/10"
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={async () => {
-                                const res = await fetch('/api/categories/resolve', {
-                                  method: 'POST',
-                                  body: JSON.stringify({ id: cat._id, action: 'reject' })
-                                });
-                                if (res.ok) {
-                                  toast.error(`Request for "${cat.name}" rejected`);
-                                  fetchCategories();
-                                }
-                              }}
-                              className="text-slate-500 hover:text-red-600 hover:bg-red-50 h-8 px-4 rounded-lg font-bold text-[11px]"
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Add Category Form */}
-                <div className="bg-slate-50/80 border border-slate-100 rounded-lg p-5 space-y-4">
-                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">
-                    Add Local Category
-                  </h3>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Category name (e.g. Burgers)"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCategoryFromModal()}
-                      className="bg-white border-slate-200 h-11 rounded-lg text-sm font-medium focus:ring-amber-500 shadow-sm"
-                    />
-                    <Button
-                      onClick={handleAddCategoryFromModal}
-                      className="bg-slate-900 hover:bg-slate-800 text-white h-11 px-6 rounded-lg font-bold shadow-lg shadow-slate-900/10"
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Add
-                    </Button>
-                  </div>
-                </div>
-
-                {/* My Categories List */}
-                <div className="space-y-4">
-                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">
-                    Your Active Categories
-                  </h3>
-                  <div className="grid gap-3">
-                    {categories
-                      .filter(c => c.department === user?.department || c.department === 'Both')
-                      .sort((a, b) => (a.isCommon === b.isCommon ? -1 : 1))
-                      .map(cat => (
-                        <div key={cat._id} className={`p-4 rounded-lg border transition-all duration-300 flex items-center justify-between ${cat.isCommon
-                          ? 'bg-amber-50/50 border-amber-100/50 shadow-sm shadow-amber-500/5'
-                          : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-md hover:shadow-slate-200/50'
-                          }`}>
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cat.isCommon ? 'bg-amber-500 shadow-sm shadow-amber-500/40' : 'bg-slate-200'}`} />
-
-                            {editingCatId === cat._id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  autoFocus
-                                  value={editingCatName}
-                                  onChange={(e) => setEditingCatName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleUpdateCategory(cat._id, editingCatName);
-                                    if (e.key === 'Escape') setEditingCatId(null);
-                                  }}
-                                  className="h-9 py-0 px-3 text-sm bg-white border-amber-200 focus:ring-amber-500 rounded-lg"
-                                />
-                                <div className="flex gap-1">
-                                  <Button size="icon" className="h-9 w-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" onClick={() => handleUpdateCategory(cat._id, editingCatName)}>
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-lg" onClick={() => setEditingCatId(null)}>
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate text-sm">{cat.name}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  {cat.isCommon ? (
-                                    <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm shadow-amber-500/5">Common</span>
-                                  ) : cat.commonRequested ? (
-                                    <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                      {cat.requestedBy === user?.department ? "Waiting for Approval" : "Request Pending"}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md uppercase tracking-wider">Private</span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {editingCatId !== cat._id && (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingCatId(cat._id);
-                                  setEditingCatName(cat.name);
-                                }}
-                                className="h-9 w-9 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleDeleteCategory(cat._id)}
-                                className="h-9 w-9 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
+            <div className="p-6 space-y-8">
+              {/* Add Category Form */}
+              <div className="bg-slate-50/80 border border-slate-100 rounded-lg p-5 space-y-4">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">
+                  Add Category
+                </h3>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Category name (e.g. Burgers)"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategoryFromModal()}
+                    className="bg-white border-slate-200 h-11 rounded-lg text-sm font-medium focus:ring-amber-500 shadow-sm"
+                  />
+                  <Button
+                    onClick={handleAddCategoryFromModal}
+                    className="bg-slate-900 hover:bg-slate-800 text-white h-11 px-6 rounded-lg font-bold shadow-lg shadow-slate-900/10"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Add
+                  </Button>
                 </div>
               </div>
-            ) : (
-              <div className="p-6 space-y-8">
-                {/* Explore Categories Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between px-1">
-                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                      Available to Request
-                    </h3>
-                    <span className="text-[10px] font-bold text-slate-300">
-                      {categories.filter(c => c.department !== user?.department && c.department !== 'Both' && !c.isCommon).length} found
-                    </span>
-                  </div>
 
-                  <div className="grid gap-3">
-                    {categories
-                      .filter(c => c.department !== user?.department && c.department !== 'Both' && !c.isCommon)
-                      .map(cat => (
-                        <div key={cat._id} className="p-4 rounded-lg border border-slate-100 bg-white hover:border-amber-200 transition-all group hover:shadow-lg hover:shadow-slate-200/40">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 truncate text-sm">{cat.name}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                  Belongs to {cat.department}
-                                </span>
-                                {cat.commonRequested && (
-                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${cat.requestedBy === user?.department ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'
-                                    }`}>
-                                    {cat.requestedBy === user?.department ? 'Sent Request' : 'Under Review'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {!cat.commonRequested && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  const res = await fetch('/api/categories/request', {
-                                    method: 'POST',
-                                    body: JSON.stringify({ id: cat._id })
-                                  });
-                                  if (res.ok) {
-                                    toast.info(`Request sent to share "${cat.name}"`);
-                                    fetchCategories();
-                                  }
-                                }}
-                                className="h-9 px-4 rounded-lg font-bold text-[11px] border-slate-200 text-slate-600 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 shadow-sm transition-all"
-                              >
-                                Request to Share
+              {/* Categories List */}
+              <div className="space-y-4">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">
+                  Active Categories
+                </h3>
+                <div className="grid gap-3">
+                  {categories.map(cat => (
+                    <div key={cat._id} className="p-4 rounded-lg border bg-white border-slate-100 hover:border-slate-200 hover:shadow-md hover:shadow-slate-200/50 transition-all duration-300 flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {editingCatId === cat._id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              autoFocus
+                              value={editingCatName}
+                              onChange={(e) => setEditingCatName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleUpdateCategory(cat._id, editingCatName);
+                                if (e.key === 'Escape') setEditingCatId(null);
+                              }}
+                              className="h-9 py-0 px-3 text-sm bg-white border-amber-200 focus:ring-amber-500 rounded-lg"
+                            />
+                            <div className="flex gap-1">
+                              <Button size="icon" className="h-9 w-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" onClick={() => handleUpdateCategory(cat._id, editingCatName)}>
+                                <Check className="w-4 h-4" />
                               </Button>
-                            )}
+                              <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-lg" onClick={() => setEditingCatId(null)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-
-                    {categories.filter(c => c.department !== user?.department && c.department !== 'Both' && !c.isCommon).length === 0 && (
-                      <div className="py-20 flex flex-col items-center justify-center text-center px-6">
-                        <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                          <Search className="w-6 h-6 text-slate-200" />
-                        </div>
-                        <h4 className="text-sm font-bold text-slate-900 mb-1">No new categories to explore</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed max-w-[240px]">
-                          All categories from the {user?.department === 'Restaurant' ? 'Bakery' : 'Restaurant'} section are already shared or linked.
-                        </p>
+                        ) : (
+                          <p className="font-bold text-slate-900 truncate text-sm">{cat.name}</p>
+                        )}
                       </div>
-                    )}
-                  </div>
+
+                      {editingCatId !== cat._id && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingCatId(cat._id);
+                              setEditingCatName(cat.name);
+                            }}
+                            className="h-9 w-9 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteCategory(cat._id)}
+                            className="h-9 w-9 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           <DialogFooter className="p-6 bg-slate-50/50 border-t border-slate-100">

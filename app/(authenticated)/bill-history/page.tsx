@@ -24,7 +24,7 @@ interface Bill {
 }
 
 export default function BillsPage() {
-  const [user, setUser] = useState<{ department: string } | null>(null);
+  const [user, setUser] = useState<{ role: string; department: string } | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -110,7 +110,7 @@ export default function BillsPage() {
         const data = await r.json();
         setBills((prev) => {
           // If not admin, remove the deleted bill from the list entirely
-          if (user?.department !== 'Admin') {
+          if (user?.role !== 'admin') {
             return prev.filter((b) => b._id !== deleteId);
           }
           // If admin, update the bill to show it's deleted
@@ -332,7 +332,7 @@ export default function BillsPage() {
           </div>
         </div>
 
-        {user?.department === 'Admin' && (
+        {user?.role === 'admin' && (
           <div className="flex items-center gap-2 p-1 bg-slate-50 border border-slate-200 rounded-lg w-fit shadow-sm">
             {[
               { id: 'all', label: 'All Bills' },
@@ -459,7 +459,7 @@ export default function BillsPage() {
                               <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Cancellation Reason:</span>
                               <span className="text-sm italic text-slate-600 bg-red-50/50 p-2 rounded-md border border-red-100">{bill.deletionReason || 'No reason provided'}</span>
                             </div>
-                          ) : (
+                          ) : user?.role === 'admin' ? (
                             <button
                               onClick={() => setDeleteId(bill._id)}
                               className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-500 transition"
@@ -467,7 +467,7 @@ export default function BillsPage() {
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               Delete Bill
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     )}

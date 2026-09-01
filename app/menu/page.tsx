@@ -23,7 +23,6 @@ interface Dish {
   category: string;
   imageUrl?: string;
   variants: Variant[];
-  department: string;
 }
 
 export default function PublicMenuPage() {
@@ -202,7 +201,6 @@ export default function PublicMenuPage() {
                     <span className="px-2 py-0.5 rounded bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-widest">
                       {selectedDish.category}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">• {selectedDish.department}</span>
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedDish.name}</h2>
                 </div>

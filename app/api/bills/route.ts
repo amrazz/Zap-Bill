@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Bill from '@/lib/models/Bill';
+import { and, gte, lte, eq, like, inArray, desc, sql } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { bills, billItems } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
+
+function serializeBill(bill: typeof bills.$inferSelect, items: (typeof billItems.$inferSelect)[]) {
+  return {
+    _id: bill.id,
+    subtotal: bill.subtotal,
+    orderType: bill.orderType,
+    isDeleted: bill.isDeleted,
+    deletionReason: bill.deletionReason,
+    deletedAt: bill.deletedAt,
+    createdAt: bill.createdAt,
+    items: items.map((i) => ({ dishName: i.dishName, variantLabel: i.variantLabel, price: i.price, qty: i.qty })),
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,52 +28,55 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const from = searchParams.get('from');
     const to = searchParams.get('to');
-
     const status = searchParams.get('status') || 'all';
 
-    await connectDB();
-    
-    let query: any = session.department === 'Admin' ? {} : { department: session.department, isDeleted: { $ne: true } };
+    const conditions = [];
 
-    // Apply Admin-only status filter
-    if (session.department === 'Admin') {
-      if (status === 'active') query.isDeleted = { $ne: true };
-      else if (status === 'deleted') query.isDeleted = true;
+    if (session.role === 'admin') {
+      if (status === 'active') conditions.push(eq(bills.isDeleted, false));
+      else if (status === 'deleted') conditions.push(eq(bills.isDeleted, true));
+    } else {
+      conditions.push(eq(bills.isDeleted, false));
     }
 
-    // Search by Bill Number (last 6 of ID) or Item Name
+    if (from) conditions.push(gte(bills.createdAt, new Date(from).toISOString()));
+    if (to) conditions.push(lte(bills.createdAt, new Date(to).toISOString()));
+
+    let matchingBillIds: string[] | null = null;
     if (search) {
       const searchStr = search.replace(/^ZB/i, '');
-      query.$or = [
-        { 'items.dishName': { $regex: search, $options: 'i' } }
-      ];
-      // If it looks like a bill ID snippet (hex characters)
-      if (/^[0-9a-fA-F]+$/.test(searchStr)) {
-        query.$or.push({ _id: { $regex: searchStr + '$', $options: 'i' } });
+      const byItem = db.select({ billId: billItems.billId }).from(billItems).where(like(billItems.dishName, `%${search}%`)).all();
+      matchingBillIds = byItem.map((r) => r.billId);
+      // Bill IDs are UUIDs — matching by trailing snippet like the old ObjectId search did.
+      if (/^[0-9a-fA-F-]+$/.test(searchStr)) {
+        const allBills = db.select({ id: bills.id }).from(bills).all();
+        matchingBillIds.push(...allBills.filter((b) => b.id.endsWith(searchStr)).map((b) => b.id));
       }
+      if (matchingBillIds.length === 0) {
+        return NextResponse.json({ bills: [], total: 0, pages: 0, currentPage: page, limit });
+      }
+      conditions.push(inArray(bills.id, matchingBillIds));
     }
 
-    // Date range
-    if (from || to) {
-      query.createdAt = {};
-      if (from) query.createdAt.$gte = new Date(from);
-      if (to) query.createdAt.$lte = new Date(to);
-    }
+    const where = conditions.length ? and(...conditions) : undefined;
 
-    const total = await Bill.countDocuments(query);
-    const bills = await Bill.find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+    const total = db.select({ count: sql<number>`count(*)` }).from(bills).where(where).get()?.count ?? 0;
+    const pageBills = db
+      .select()
+      .from(bills)
+      .where(where)
+      .orderBy(desc(bills.createdAt))
       .limit(limit)
-      .lean();
+      .offset((page - 1) * limit)
+      .all();
 
-    return NextResponse.json({
-      bills,
-      total,
-      pages: Math.ceil(total / limit),
-      currentPage: page,
-      limit
-    });
+    const allItems = pageBills.length
+      ? db.select().from(billItems).where(inArray(billItems.billId, pageBills.map((b) => b.id))).all()
+      : [];
+
+    const result = pageBills.map((b) => serializeBill(b, allItems.filter((i) => i.billId === b.id)));
+
+    return NextResponse.json({ bills: result, total, pages: Math.ceil(total / limit), currentPage: page, limit });
   } catch (error) {
     console.error('GET bills error:', error);
     return NextResponse.json({ error: 'Failed to fetch bills.' }, { status: 500 });
@@ -72,16 +89,29 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { items, subtotal, orderType } = body;
-    const department = session.department;
+    const { items, orderType } = body;
 
-    if (!items || items.length === 0 || subtotal === undefined || !orderType) {
-      return NextResponse.json({ error: 'Items, subtotal, and order type are required.' }, { status: 400 });
+    if (!items || items.length === 0 || !orderType) {
+      return NextResponse.json({ error: 'Items and order type are required.' }, { status: 400 });
     }
 
-    await connectDB();
-    const bill = await Bill.create({ items, subtotal, orderType, department });
-    return NextResponse.json(bill, { status: 201 });
+    const rawItems = items as { dishName: string; variantLabel: string; price: number; qty: number }[];
+    for (const item of rawItems) {
+      if (!item.dishName || typeof item.price !== 'number' || item.price < 0 || typeof item.qty !== 'number' || item.qty <= 0) {
+        return NextResponse.json({ error: 'One or more items in the order are invalid.' }, { status: 400 });
+      }
+    }
+
+    // Recompute the subtotal from the actual items server-side instead of trusting
+    // whatever the client sent — the client value never gets persisted.
+    const subtotal = Math.round(rawItems.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100;
+
+    const bill = db.insert(bills).values({ subtotal, orderType }).returning().get();
+    const insertedItems = rawItems.map((item) =>
+      db.insert(billItems).values({ billId: bill.id, ...item }).returning().get()
+    );
+
+    return NextResponse.json(serializeBill(bill, insertedItems), { status: 201 });
   } catch (error) {
     console.error('POST bill error:', error);
     return NextResponse.json({ error: 'Failed to save bill.' }, { status: 500 });

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as bcrypt from 'bcryptjs';
-import { connectDB } from '@/lib/db';
-import User from '@/lib/models/User';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { users } from '@/lib/db/schema';
 import { createSession } from '@/lib/session';
 
 export async function POST(request: NextRequest) {
@@ -12,10 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Find user (case-insensitive via lowercase in schema)
-    const user = await User.findOne({ username: username.toLowerCase().trim() });
+    const user = db.select().from(users).where(eq(users.username, username.toLowerCase().trim())).get();
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
@@ -26,8 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
     }
 
-    await createSession(user._id.toString(), user.username, user.department);
-    return NextResponse.json({ success: true, username: user.username, department: user.department });
+    await createSession(user.id, user.username, user.role);
+    return NextResponse.json({ success: true, username: user.username, role: user.role });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

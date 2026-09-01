@@ -1,19 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Dish from '@/lib/models/Dish';
-import mongoose from 'mongoose';
+import { eq, ne, and } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { dishes, dishVariants } from '@/lib/db/schema';
+import { getSession } from '@/lib/session';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+function serializeDish(dish: typeof dishes.$inferSelect, variants: (typeof dishVariants.$inferSelect)[]) {
+  return {
+    _id: dish.id,
+    name: dish.name,
+    category: dish.category,
+    imageUrl: dish.imageUrl,
+    isAvailable: dish.isAvailable,
+    variants: variants.map((v) => ({ label: v.label, price: v.price })),
+    createdAt: dish.createdAt,
+    updatedAt: dish.updatedAt,
+  };
+}
+
 export async function GET(_req: NextRequest, ctx: RouteContext) {
   try {
     const { id } = await ctx.params;
-    await connectDB();
-    const dish = await Dish.findById(id).lean();
+    const dish = db.select().from(dishes).where(eq(dishes.id, id)).get();
     if (!dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
-    return NextResponse.json(dish);
+    const variants = db.select().from(dishVariants).where(eq(dishVariants.dishId, id)).all();
+    return NextResponse.json(serializeDish(dish, variants));
   } catch {
     return NextResponse.json({ error: 'Failed to fetch dish.' }, { status: 500 });
   }
@@ -21,35 +35,47 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
 
 export async function PUT(request: NextRequest, ctx: RouteContext) {
   try {
-    const { id } = await ctx.params;
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid ID.' }, { status: 400 });
-    }
-    const body = await request.json();
-    const { name, variants, department } = body;
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Price validation
-    if (variants && variants.some((v: any) => v.price <= 0)) {
+    const { id } = await ctx.params;
+    const body = await request.json();
+    const { name, category, imageUrl, isAvailable, variants } = body;
+
+    if (variants && variants.some((v: { price: number }) => v.price <= 0)) {
       return NextResponse.json({ error: 'All item prices must be greater than 0.' }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Check for name conflict if name is being changed
-    if (name && department) {
-      const existingConflict = await Dish.findOne({
-        _id: { $ne: id },
-        name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
-        department
-      });
-      if (existingConflict) {
-        return NextResponse.json({ error: `Item "${name}" already exists in ${department}.` }, { status: 400 });
+    if (name) {
+      const conflict = db
+        .select()
+        .from(dishes)
+        .where(and(ne(dishes.id, id)))
+        .all()
+        .find((d) => d.name.toLowerCase() === name.trim().toLowerCase());
+      if (conflict) {
+        return NextResponse.json({ error: `Item "${name}" already exists.` }, { status: 400 });
       }
     }
 
-    const dish = await Dish.findByIdAndUpdate(id, body, { new: true, runValidators: true }).lean();
+    const updates: Partial<typeof dishes.$inferInsert> = { updatedAt: new Date().toISOString() };
+    if (name !== undefined) updates.name = name.trim();
+    if (category !== undefined) updates.category = category;
+    if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+    if (isAvailable !== undefined) updates.isAvailable = isAvailable;
+
+    const dish = db.update(dishes).set(updates).where(eq(dishes.id, id)).returning().get();
     if (!dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
-    return NextResponse.json(dish);
+
+    if (variants) {
+      db.delete(dishVariants).where(eq(dishVariants.dishId, id)).run();
+      for (const v of variants as { label: string; price: number }[]) {
+        db.insert(dishVariants).values({ dishId: id, label: v.label, price: v.price }).run();
+      }
+    }
+
+    const finalVariants = db.select().from(dishVariants).where(eq(dishVariants.dishId, id)).all();
+    return NextResponse.json(serializeDish(dish, finalVariants));
   } catch (error) {
     console.error('PUT dish error:', error);
     return NextResponse.json({ error: 'Failed to update dish.' }, { status: 500 });
@@ -58,12 +84,11 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { id } = await ctx.params;
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid ID.' }, { status: 400 });
-    }
-    await connectDB();
-    const dish = await Dish.findByIdAndDelete(id);
+    const dish = db.delete(dishes).where(eq(dishes.id, id)).returning().get();
     if (!dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {

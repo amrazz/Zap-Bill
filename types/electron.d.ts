@@ -1,0 +1,11 @@
+export {};
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      saveBackup: () => Promise<{ success: boolean; path?: string; error?: string }>;
+      restoreBackup: () => Promise<{ success: boolean; error?: string }>;
+      printReceipt: (html: string) => Promise<{ success: boolean; error?: string }>;
+    };
+  }
+}

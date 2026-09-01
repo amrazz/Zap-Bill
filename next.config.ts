@@ -1,14 +1,10 @@
 import type { NextConfig } from "next";
-import withPWAInit from "@ducanh2912/next-pwa";
 
-const withPWA = withPWAInit({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  register: true,
-});
-
+// PWA/service-worker support existed for the old browser-based deployment.
+// The Electron desktop app ships its own installer, so a service worker
+// would only risk serving stale cached pages after an update — disabled here.
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

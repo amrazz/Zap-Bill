@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Category from '@/lib/models/Category';
-import Dish from '@/lib/models/Dish';
+import { eq, ne } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { categories, dishes } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
 export async function GET() {
@@ -9,12 +9,8 @@ export async function GET() {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    await connectDB();
-    const otherDept = session.department === 'Restaurant' ? 'Bakery' : 'Restaurant';
-    
-    // Return all categories in the system so it can be managed/requested in tabs
-    const categories = await Category.find({}).sort({ name: 1 }).lean();
-    return NextResponse.json(categories);
+    const all = db.select().from(categories).orderBy(categories.name).all();
+    return NextResponse.json(all.map((c) => ({ _id: c.id, name: c.name, createdAt: c.createdAt })));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch categories';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -29,23 +25,14 @@ export async function POST(request: NextRequest) {
     const { name } = await request.json();
     if (!name) return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
 
-    await connectDB();
-
-    const existing = await Category.findOne({
-      name: name.trim(),
-      department: session.department
-    });
-
+    const trimmed = name.trim();
+    const existing = db.select().from(categories).all().find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
     if (existing) {
-      return NextResponse.json(existing);
+      return NextResponse.json({ _id: existing.id, name: existing.name, createdAt: existing.createdAt });
     }
 
-    const category = await Category.create({
-      name: name.trim(),
-      department: session.department
-    });
-
-    return NextResponse.json(category, { status: 201 });
+    const category = db.insert(categories).values({ name: trimmed }).returning().get();
+    return NextResponse.json({ _id: category.id, name: category.name, createdAt: category.createdAt }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create category';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -60,35 +47,26 @@ export async function PUT(request: NextRequest) {
     const { id, name: newName } = await request.json();
     if (!id || !newName) return NextResponse.json({ error: 'ID and new name are required' }, { status: 400 });
 
-    await connectDB();
-
-    const category = await Category.findById(id);
+    const category = db.select().from(categories).where(eq(categories.id, id)).get();
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
 
     const oldName = category.name;
     const trimmedNewName = newName.trim();
 
-    // Check conflict
-    const conflict = await Category.findOne({
-      _id: { $ne: id },
-      name: { $regex: new RegExp(`^${trimmedNewName}$`, 'i') },
-      department: category.department
-    });
+    const conflict = db
+      .select()
+      .from(categories)
+      .where(ne(categories.id, id))
+      .all()
+      .find((c) => c.name.toLowerCase() === trimmedNewName.toLowerCase());
     if (conflict) return NextResponse.json({ error: 'Category name already exists' }, { status: 400 });
 
-    // Update Category
-    category.name = trimmedNewName;
-    await category.save();
+    const updated = db.update(categories).set({ name: trimmedNewName }).where(eq(categories.id, id)).returning().get();
 
-    // Cascading update to Dishes
-    // When a category is shared (Both), we must update dishes in ALL departments
-    const dishFilter = category.department === 'Both' 
-      ? { category: oldName } 
-      : { category: oldName, department: { $in: [category.department, 'Both'] } };
+    // Cascading update to dishes referencing the old category name
+    db.update(dishes).set({ category: trimmedNewName }).where(eq(dishes.category, oldName)).run();
 
-    await Dish.updateMany(dishFilter, { category: trimmedNewName });
-
-    return NextResponse.json(category);
+    return NextResponse.json({ _id: updated.id, name: updated.name, createdAt: updated.createdAt });
   } catch (error) {
     console.error('Category PUT error:', error);
     return NextResponse.json({ error: 'Failed to update category' }, { status: 500 });
@@ -103,25 +81,18 @@ export async function DELETE(request: NextRequest) {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
 
-    await connectDB();
-
-    const category = await Category.findById(id);
+    const category = db.select().from(categories).where(eq(categories.id, id)).get();
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
 
-    // Safeguard: Check if dishes exist in this category
-    const itemCount = await Dish.countDocuments({ 
-      category: category.name, 
-      department: { $in: [category.department, 'Both'] } 
-    });
-
+    const itemCount = db.select().from(dishes).where(eq(dishes.category, category.name)).all().length;
     if (itemCount > 0) {
-      return NextResponse.json({ 
-        error: `Cannot delete: This category contains ${itemCount} items. Move or delete the items first.`,
-        itemCount 
-      }, { status: 400 });
+      return NextResponse.json(
+        { error: `Cannot delete: This category contains ${itemCount} items. Move or delete the items first.`, itemCount },
+        { status: 400 }
+      );
     }
 
-    await Category.deleteOne({ _id: id });
+    db.delete(categories).where(eq(categories.id, id)).run();
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete category';

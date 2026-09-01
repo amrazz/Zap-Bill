@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decrypt } from '@/lib/session';
+import { hasAdminUser } from '@/lib/db/client';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/', '/menu', '/api/dishes/public'];
+const PUBLIC_PATHS = ['/login', '/setup', '/menu'];
+
+// Admin-only pages. Menu management is open to staff too (see layout.tsx nav).
+// API routes enforce their own admin check inline (existing pattern in this
+// codebase), so they aren't listed here.
+const ADMIN_ONLY_PREFIXES = [
+  '/admin',
+  '/settings',
+];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isKioskMode = request.cookies.has('kiosk_mode');
 
-  // Short-circuit for PWA and static assets to ensure installability
   if (
     pathname === '/manifest.json' ||
     pathname === '/manifest.webmanifest' ||
@@ -22,7 +29,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow other public paths through
+  // No admin account yet: force everything through the first-run setup wizard.
+  if (!hasAdminUser() && pathname !== '/setup') {
+    return NextResponse.redirect(new URL('/setup', request.url));
+  }
+
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
@@ -30,16 +41,12 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('zapbill_session')?.value;
   const session = await decrypt(token);
 
-  // 1. If user is in Kiosk Mode (scanned QR) and is NOT logged in as staff
-  // Force them back to the menu
-  if (isKioskMode && !session) {
-    return NextResponse.redirect(new URL('/menu', request.url));
+  if (!session) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 2. Auth Protection for staff routes
-  if (!session) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+  if (session.role !== 'admin' && ADMIN_ONLY_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/checkout', request.url));
   }
 
   return NextResponse.next();

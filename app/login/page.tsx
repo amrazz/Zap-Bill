@@ -25,8 +25,8 @@ export default function LoginPage() {
         router.push('/checkout');
         router.refresh();
       } else {
-        const data = await res.json();
-        setError(data.error ?? 'Login failed. Please try again.');
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? 'Login failed. Please try again.');
       }
     });
   }

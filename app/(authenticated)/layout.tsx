@@ -12,6 +12,8 @@ import {
   Package,
   History,
   LogOut,
+  Settings,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,19 +21,18 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [user, setUser] = useState<{ department: string } | null>(null);
+  const [user, setUser] = useState<{ role: string; department: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then((u) => {
         setUser(u);
-        const isAdminPage = pathname.startsWith("/admin/");
-        const isOpsPage = pathname === "/checkout" || pathname === "/manage-menu";
+        // Menu management is open to staff too — only the dashboard/expenses/
+        // salaries pages and account/backup settings stay admin-only.
+        const isAdminPage = pathname.startsWith("/admin/") || pathname.startsWith("/settings");
 
-        if (u.department === "Admin" && isOpsPage) {
-          router.replace("/admin/dashboard");
-        } else if (u.department !== "Admin" && isAdminPage) {
+        if (u.role !== "admin" && isAdminPage) {
           router.replace("/checkout");
         }
       })
@@ -47,17 +48,21 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks =
-    user?.department === "Admin"
+    user?.role === "admin"
       ? [
+        { href: "/checkout", label: "Checkout", icon: ShoppingCart },
         { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/bill-history", label: "Bills", icon: Receipt },
+        { href: "/manage-menu", label: "Menu", icon: Package },
         { href: "/admin/expenses", label: "Expenses", icon: Wallet },
         { href: "/admin/salaries", label: "Salaries", icon: Users },
+        { href: "/settings/staff", label: "Staff", icon: Settings },
+        { href: "/settings/backup", label: "Backup", icon: HardDrive },
       ]
       : [
         { href: "/checkout", label: "Checkout", icon: ShoppingCart },
-        { href: "/manage-menu", label: "Menu", icon: Package },
         { href: "/bill-history", label: "History", icon: History },
+        { href: "/manage-menu", label: "Menu", icon: Package },
       ];
 
   return (
