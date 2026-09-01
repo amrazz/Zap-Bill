@@ -1,5 +1,11 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+// Type-only imports — erased entirely at compile time, so they can never
+// trigger loading the native addon (see the note on init() below for why
+// that matters). Note that `drizzle-orm/better-sqlite3` itself does a static
+// `require("better-sqlite3")` at its own top level, so importing *it*
+// eagerly is just as unsafe here as importing `better-sqlite3` directly —
+// both the driver and the native module have to be loaded dynamically.
+import type Database from 'better-sqlite3';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import * as schema from './schema';
@@ -7,25 +13,36 @@ import { CREATE_TABLES_SQL, appSettings } from './schema';
 
 const DEPARTMENT = (process.env.APP_DEPARTMENT === 'Bakery' ? 'Bakery' : 'Restaurant') as 'Restaurant' | 'Bakery';
 
+type DB = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
+
 let sqlite: Database.Database | null = null;
-let drizzleDb: ReturnType<typeof drizzle> | null = null;
+let drizzleDb: DB | null = null;
 
 // Opens the SQLite file and runs setup/migrations on first real use — never at
 // module-import time. `next build` loads every API route (including this file,
-// transitively) in parallel workers just to inspect their exports; if opening
-// the native database were a side effect of importing this file, multiple
-// build workers would race to open/create the same file simultaneously, which
-// is exactly what was crashing the Windows build with a native access
-// violation. Runtime code always goes through getDb()/getSqlite() below, so
-// the real database is only ever touched once an API route actually runs.
+// transitively) in parallel workers just to inspect their exports. A *static*
+// import of `better-sqlite3` (directly, or transitively via
+// `drizzle-orm/better-sqlite3`, which itself does `require("better-sqlite3")`
+// at its own top level) forces Node to load (dlopen) the native addon the
+// instant this file is imported, regardless of when the constructor is
+// actually called. Several build workers loading the same native .node
+// binary into their own process concurrently is exactly what was crashing
+// the Windows build with a native access violation. Dynamic `require()`s
+// here instead defer loading both the driver and the native module until an
+// API route genuinely runs, which never happens during the build.
 function init(): Database.Database {
   if (sqlite) return sqlite;
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const DatabaseCtor: typeof Database = require('better-sqlite3');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { drizzle } = require('drizzle-orm/better-sqlite3') as typeof import('drizzle-orm/better-sqlite3');
 
   const dbPath = process.env.DATABASE_PATH ?? path.join(process.cwd(), 'data', 'zapbill.db');
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  sqlite = new Database(dbPath);
+  sqlite = new DatabaseCtor(dbPath);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(CREATE_TABLES_SQL);
@@ -62,7 +79,7 @@ function getSqlite(): Database.Database {
 // A Proxy so every existing call site (`db.select()`, `db.insert()`, etc.)
 // keeps working unchanged, while the actual connection is created lazily on
 // first property access instead of at import time.
-export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+export const db = new Proxy({} as DB, {
   get(_target, prop, receiver) {
     init();
     return Reflect.get(drizzleDb as object, prop, receiver);
