@@ -12,8 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // electron-builder output — generated artifacts, not source.
+    "dist/**",
     // Electron main/preload are plain CommonJS Node scripts, not part of the Next app.
     "electron/**",
+    // Build tooling scripts — plain CommonJS Node, run outside the Next app.
+    "scripts/*.js",
   ]),
 ]);
 
