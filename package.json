@@ -13,10 +13,10 @@
     "lint": "eslint",
     "migrate:mongo": "tsx scripts/migrate-from-mongo.ts",
     "electron:dev": "electron electron/main.js",
-    "prebuild:electron": "next build --webpack && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/ && electron-rebuild --module-dir .next/standalone --only better-sqlite3 --platform win32 --arch x64 --version $(node -p \"require('electron/package.json').version\")",
+    "prebuild:electron": "node scripts/prebuild-electron.js win32",
     "dist:win:restaurant": "npm run prebuild:electron && electron-builder --win --config.extraMetadata.department=Restaurant --config.productName=\"Zapbill Restaurant\" --config.appId=com.zapbill.restaurant",
     "dist:win:bakery": "npm run prebuild:electron && electron-builder --win --config.extraMetadata.department=Bakery --config.productName=\"Zapbill Bakery\" --config.appId=com.zapbill.bakery",
-    "prebuild:electron:linux": "next build --webpack && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/ && electron-rebuild --module-dir .next/standalone --only better-sqlite3 --version $(node -p \"require('electron/package.json').version\")",
+    "prebuild:electron:linux": "node scripts/prebuild-electron.js",
     "dist:linux:restaurant": "npm run prebuild:electron:linux && electron-builder --linux --config.extraMetadata.department=Restaurant --config.productName=\"Zapbill Restaurant\" --config.appId=com.zapbill.restaurant",
     "dist:linux:bakery": "npm run prebuild:electron:linux && electron-builder --linux --config.extraMetadata.department=Bakery --config.productName=\"Zapbill Bakery\" --config.appId=com.zapbill.bakery"
   },
