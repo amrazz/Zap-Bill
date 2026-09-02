@@ -113,7 +113,7 @@ app.on('before-quit', () => {
 // dialog from here has been observed to crash the whole app when the user
 // interacts with it. Silent printing also matches how POS receipt printers
 // are normally used (one fixed printer, no per-bill picker needed).
-ipcMain.handle('print:receipt', async (_event, html) => {
+ipcMain.handle('print:receipt', async (_event, html, widthMm) => {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (result) => {
@@ -122,9 +122,17 @@ ipcMain.handle('print:receipt', async (_event, html) => {
       resolve(result);
     };
 
+    const CSS_DPI = 96; // CSS px is always a 96dpi reference pixel, per spec.
+    const WIDTH_MM = Number.isFinite(widthMm) && widthMm > 0 ? widthMm : 80;
+
     let printWindow;
     try {
-      printWindow = new BrowserWindow({ show: false });
+      // Match the window's on-screen width to the printed page's width (in
+      // CSS px, at the 96dpi reference) so the content height we measure
+      // before printing reflects the same text wrapping it'll get at print
+      // time, rather than a wider on-screen layout with less wrap.
+      const widthPx = Math.round((WIDTH_MM / 25.4) * CSS_DPI);
+      printWindow = new BrowserWindow({ show: false, width: widthPx, height: 600 });
     } catch (err) {
       finish({ success: false, error: err instanceof Error ? err.message : 'Failed to open print window.' });
       return;
@@ -132,14 +140,40 @@ ipcMain.handle('print:receipt', async (_event, html) => {
 
     printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
-    printWindow.webContents.once('did-finish-load', () => {
+    printWindow.webContents.once('did-finish-load', async () => {
       try {
-        printWindow.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
-          finish({ success, error: success ? undefined : failureReason });
-          // Give the print job a moment to fully hand off before destroying
-          // the window — closing immediately has been linked to native crashes.
-          setTimeout(() => { if (!printWindow.isDestroyed()) printWindow.close(); }, 500);
-        });
+        // Chromium's silent print does NOT read the receipt's own `@page` CSS
+        // rule for a physical printer — without an explicit pageSize it falls
+        // back to the printer's configured default (commonly A4/Letter), lays
+        // the receipt out at that width, and the thermal printer then only
+        // physically prints the leftmost sliver of it — which is why only the
+        // Item column survived and Qty/Rate/Amount got clipped off-page.
+        // Measure the rendered content height and set an explicit page sized
+        // to the configured printer width, fit exactly to the content.
+        const MICRONS_PER_MM = 1000;
+        let heightMicrons = 200 * MICRONS_PER_MM; // 200mm fallback if measuring fails.
+        try {
+          const contentHeightPx = await printWindow.webContents.executeJavaScript('document.documentElement.scrollHeight');
+          const contentHeightMm = (contentHeightPx / CSS_DPI) * 25.4;
+          heightMicrons = Math.round((contentHeightMm + 4) * MICRONS_PER_MM); // +4mm buffer.
+        } catch {
+          // Fall back to the fixed height above.
+        }
+
+        printWindow.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            margins: { marginType: 'none' },
+            pageSize: { width: WIDTH_MM * MICRONS_PER_MM, height: heightMicrons },
+          },
+          (success, failureReason) => {
+            finish({ success, error: success ? undefined : failureReason });
+            // Give the print job a moment to fully hand off before destroying
+            // the window — closing immediately has been linked to native crashes.
+            setTimeout(() => { if (!printWindow.isDestroyed()) printWindow.close(); }, 500);
+          }
+        );
       } catch (err) {
         finish({ success: false, error: err instanceof Error ? err.message : 'Print failed.' });
         if (!printWindow.isDestroyed()) printWindow.close();

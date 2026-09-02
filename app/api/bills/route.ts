@@ -9,6 +9,7 @@ function serializeBill(bill: typeof bills.$inferSelect, items: (typeof billItems
     _id: bill.id,
     subtotal: bill.subtotal,
     orderType: bill.orderType,
+    takeawayCharge: bill.takeawayCharge,
     isDeleted: bill.isDeleted,
     deletionReason: bill.deletionReason,
     deletedAt: bill.deletedAt,
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { items, orderType } = body;
+    const { items, orderType, takeawayCharge } = body;
 
     if (!items || items.length === 0 || !orderType) {
       return NextResponse.json({ error: 'Items and order type are required.' }, { status: 400 });
@@ -101,12 +102,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'One or more items in the order are invalid.' }, { status: 400 });
       }
     }
+    if (takeawayCharge !== undefined && (typeof takeawayCharge !== 'number' || takeawayCharge < 0)) {
+      return NextResponse.json({ error: 'Takeaway charge is invalid.' }, { status: 400 });
+    }
+
+    // The takeaway charge only ever applies to Takeaway orders — ignore any
+    // stray value sent for other order types instead of trusting the client.
+    const isTakeaway = orderType === 'Takeaway';
+    const charge = isTakeaway ? takeawayCharge ?? 0 : 0;
 
     // Recompute the subtotal from the actual items server-side instead of trusting
-    // whatever the client sent — the client value never gets persisted.
+    // whatever the client sent — the client value never gets persisted. The
+    // takeaway charge is a separate flat add-on, not folded into the subtotal.
     const subtotal = Math.round(rawItems.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100;
 
-    const bill = db.insert(bills).values({ subtotal, orderType }).returning().get();
+    const bill = db.insert(bills).values({ subtotal, orderType, takeawayCharge: charge }).returning().get();
     const insertedItems = rawItems.map((item) =>
       db.insert(billItems).values({ billId: bill.id, ...item }).returning().get()
     );

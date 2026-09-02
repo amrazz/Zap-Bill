@@ -7,6 +7,10 @@ export const appSettings = sqliteTable('app_settings', {
   id: integer('id').primaryKey().default(1),
   department: text('department', { enum: ['Restaurant', 'Bakery'] }).notNull(),
   sessionSecret: text('session_secret').notNull(),
+  // Physical width of the receipt printer's paper, in mm. Adjustable from
+  // Settings so a wrong assumption (e.g. a 58mm printer instead of 80mm) can
+  // be fixed on-site with a test print, without a new build/install.
+  printerWidthMm: integer('printer_width_mm').notNull().default(80),
 });
 
 export const users = sqliteTable('users', {
@@ -47,6 +51,9 @@ export const bills = sqliteTable('bills', {
   id: id(),
   subtotal: real('subtotal').notNull(),
   orderType: text('order_type', { enum: ['Dine-In', 'Takeaway', 'Delivery'] }).notNull().default('Dine-In'),
+  // A single flat surcharge for the whole order, only meaningful for Takeaway —
+  // added on top of the item subtotal, not folded into any item's price.
+  takeawayCharge: real('takeaway_charge').notNull().default(0),
   isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
   deletionReason: text('deletion_reason'),
   deletedAt: text('deleted_at'),
@@ -98,7 +105,8 @@ export const CREATE_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS app_settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
     department TEXT NOT NULL,
-    session_secret TEXT NOT NULL
+    session_secret TEXT NOT NULL,
+    printer_width_mm INTEGER NOT NULL DEFAULT 80
   );
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -133,6 +141,7 @@ export const CREATE_TABLES_SQL = `
     id TEXT PRIMARY KEY,
     subtotal REAL NOT NULL,
     order_type TEXT NOT NULL DEFAULT 'Dine-In',
+    takeaway_charge REAL NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     deletion_reason TEXT,
     deleted_at TEXT,

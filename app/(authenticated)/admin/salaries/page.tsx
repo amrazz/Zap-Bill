@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Users, CreditCard, Search, ChevronDown, ChevronUp, Wallet, Clock, TrendingUp } from 'lucide-react';
+import { Plus, Users, CreditCard, Search, Wallet, Clock, TrendingUp, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface PaymentInstallment {
+  _id: string;
   amount: number;
   paidAt: string;
   notes?: string;
@@ -14,37 +17,36 @@ interface PaymentInstallment {
 interface Salary {
   _id: string;
   staffName: string;
-  month: string;
-  year: number;
   totalAmount?: number;
   payments: PaymentInstallment[];
   status: 'partial' | 'paid';
-  // Legacy fields
-  amount?: number;
-  paidAt?: string;
-  notes?: string;
   createdAt: string;
 }
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
+function todayStr() {
+  return format(new Date(), 'yyyy-MM-dd');
+}
 
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - i);
-
-// ── Pay Remaining inline form ──────────────────────────────────────
-function PayRemainingForm({ salary, onPaid }: { salary: Salary; onPaid: () => void }) {
+// ── Staff detail modal: full history, add payment, delete ──────────
+function StaffDetailModal({ salary, onUpdate, onDeleted, onClose }: {
+  salary: Salary;
+  onUpdate: (s: Salary) => void;
+  onDeleted: () => void;
+  onClose: () => void;
+}) {
   const [amount, setAmount] = useState('');
-  const [paidAt, setPaidAt] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [paidAt, setPaidAt] = useState(todayStr());
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteStaff, setConfirmDeleteStaff] = useState(false);
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState<string | null>(null);
 
-  const totalPaid = salary.payments?.reduce((s, p) => s + p.amount, 0) ?? salary.amount ?? 0;
-  const remaining = salary.totalAmount ? salary.totalAmount - totalPaid : undefined;
+  const totalPaid = salary.payments.reduce((s, p) => s + p.amount, 0);
+  const remaining = salary.totalAmount != null ? salary.totalAmount - totalPaid : undefined;
+  const progressPct = salary.totalAmount ? Math.min(100, (totalPaid / salary.totalAmount) * 100) : 100;
+  const sortedPayments = [...salary.payments].sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount) {
       toast.error('Please enter an amount');
@@ -52,172 +54,182 @@ function PayRemainingForm({ salary, onPaid }: { salary: Salary; onPaid: () => vo
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/salaries/${salary._id}/pay`, {
+      const res = await fetch('/api/salaries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Number(amount), paidAt, notes }),
+        body: JSON.stringify({ staffName: salary.staffName, paidAmount: Number(amount), paidAt, notes }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Payment installment of ₹${Number(amount).toLocaleString()} recorded`);
-        onPaid();
+        toast.success(`Payment of ₹${Number(amount).toLocaleString()} recorded for ${salary.staffName}`);
+        setAmount(''); setNotes(''); setPaidAt(todayStr());
+        onUpdate(data);
       } else {
         toast.error(data.error || 'Failed to record payment');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred');
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="mt-4 pt-4 border-t border-slate-100 bg-amber-50/50 rounded-lg p-3 space-y-3">
-      <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Add Payment Installment</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Amount (₹)</label>
-          <input
-            type="number"
-            min="1"
-            placeholder={remaining ? `Max ₹${remaining}` : '0.00'}
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="mt-1 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</label>
-          <input
-            type="date"
-            lang="en-IN"
-            value={paidAt}
-            onChange={e => setPaidAt(e.target.value)}
-            className="mt-1 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
-          />
-        </div>
-      </div>
-      <input
-        type="text"
-        placeholder="Notes (optional)"
-        value={notes}
-        onChange={e => setNotes(e.target.value)}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
-      />
-      <div className="flex justify-end gap-2">
-        <button type="submit" disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50">
-          {saving ? 'Saving…' : 'Confirm Payment'}
-        </button>
-      </div>
-    </form>
-  );
-}
+  const handleDeletePayment = async (paymentId: string) => {
+    try {
+      const res = await fetch(`/api/salaries/${salary._id}/payments/${paymentId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Payment removed');
+        onUpdate({ ...data, payments: data.payments });
+      } else {
+        toast.error(data.error || 'Failed to delete payment');
+      }
+    } catch {
+      toast.error('An error occurred');
+    } finally {
+      setConfirmDeletePayment(null);
+    }
+  };
 
-// ── Salary Card ────────────────────────────────────────────────────
-function SalaryCard({ salary, onUpdate }: { salary: Salary; onUpdate: () => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [showPayForm, setShowPayForm] = useState(false);
-
-  // Support both new (payments[]) and legacy records
-  const hasPayments = salary.payments && salary.payments.length > 0;
-  const totalPaid = hasPayments
-    ? salary.payments.reduce((s, p) => s + p.amount, 0)
-    : (salary.amount ?? 0);
-
-  const isPartial = salary.status === 'partial' || (!hasPayments && false);
-  const remaining = salary.totalAmount ? salary.totalAmount - totalPaid : undefined;
-  const progressPct = salary.totalAmount ? Math.min(100, (totalPaid / salary.totalAmount) * 100) : 100;
+  const handleDeleteStaff = async () => {
+    try {
+      const res = await fetch(`/api/salaries/${salary._id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success(`Deleted all salary records for ${salary.staffName}`);
+        onDeleted();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to delete');
+      }
+    } catch {
+      toast.error('An error occurred');
+    }
+  };
 
   return (
-    <div className="bg-white border border-slate-100 rounded-lg p-5 shadow-sm hover:shadow-md transition">
-      {/* Top row */}
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isPartial ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-600'}`}>
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-800">{salary.staffName}</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{salary.month} {salary.year}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-black text-slate-900">₹{totalPaid.toLocaleString('en-IN')}</p>
-          {salary.totalAmount && (
-            <p className="text-[10px] text-slate-400">of ₹{salary.totalAmount.toLocaleString('en-IN')}</p>
-          )}
-          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isPartial ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-700'}`}>
-            {isPartial ? 'Partial' : 'Paid'}
-          </span>
-        </div>
-      </div>
+    <Dialog open onOpenChange={(open: boolean) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg bg-white border-slate-200 max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-slate-900 flex items-center gap-2">
+            <Users className="w-5 h-5 text-amber-500" />
+            {salary.staffName}
+          </DialogTitle>
+          <DialogDescription className="text-slate-500">Payment history and balance for this staff member.</DialogDescription>
+        </DialogHeader>
 
-      {/* Progress bar (only if totalAmount set) */}
-      {salary.totalAmount && (
-        <div className="mt-3">
-          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="grid grid-cols-3 gap-3 py-2">
+          <div className="bg-slate-50 rounded-lg p-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Paid</p>
+            <p className="text-lg font-black text-slate-900">₹{totalPaid.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Agreed Total</p>
+            <p className="text-lg font-black text-slate-900">{salary.totalAmount != null ? `₹${salary.totalAmount.toLocaleString('en-IN')}` : '—'}</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Remaining</p>
+            <p className={`text-lg font-black ${remaining && remaining > 0 ? 'text-orange-600' : 'text-slate-900'}`}>
+              {remaining != null ? `₹${remaining.toLocaleString('en-IN')}` : '—'}
+            </p>
+          </div>
+        </div>
+
+        {salary.totalAmount != null && (
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden -mt-1 mb-1">
             <div
-              className={`h-full rounded-full transition-all ${isPartial ? 'bg-orange-400' : 'bg-green-500'}`}
+              className={`h-full rounded-full transition-all ${salary.status === 'partial' ? 'bg-orange-400' : 'bg-green-500'}`}
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          {isPartial && remaining && (
-            <p className="text-[10px] text-slate-400 mt-1 text-right">₹{remaining.toLocaleString('en-IN')} remaining</p>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Payment history toggle */}
-      {hasPayments && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-700 uppercase tracking-wide transition"
-          >
-            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {salary.payments.length} payment{salary.payments.length !== 1 ? 's' : ''}
-          </button>
-          {expanded && (
-            <div className="mt-2 space-y-1.5">
-              {salary.payments.map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-xs bg-slate-50 rounded-md px-3 py-2">
-                  <span className="text-slate-500">{format(new Date(p.paidAt), 'dd/MM/yyyy')}{p.notes ? ` · ${p.notes}` : ''}</span>
+        {/* Add payment */}
+        <form onSubmit={handleAddPayment} className="bg-amber-50/60 border border-amber-100 rounded-lg p-3 space-y-2">
+          <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Add Payment</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number" min="1" placeholder="Amount (₹)" value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+            />
+            <input
+              type="date" lang="en-IN" value={paidAt}
+              onChange={(e) => setPaidAt(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+            />
+          </div>
+          <input
+            type="text" placeholder="Notes (optional)" value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+          />
+          <div className="flex justify-end">
+            <button type="submit" disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50">
+              {saving ? 'Saving…' : 'Record Payment'}
+            </button>
+          </div>
+        </form>
+
+        {/* History */}
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">
+            Payment History ({sortedPayments.length})
+          </p>
+          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            {sortedPayments.map((p) => (
+              <div key={p._id} className="flex items-center justify-between text-xs bg-slate-50 rounded-md px-3 py-2 group">
+                <div>
                   <span className="font-bold text-slate-800">₹{p.amount.toLocaleString('en-IN')}</span>
+                  <span className="text-slate-400 ml-2">{format(new Date(p.paidAt), 'dd/MM/yyyy')}</span>
+                  {p.notes && <span className="text-slate-400 italic ml-2">· {p.notes}</span>}
                 </div>
-              ))}
+                {confirmDeletePayment === p._id ? (
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => handleDeletePayment(p._id)} className="text-red-600 font-bold hover:underline">Confirm</button>
+                    <button onClick={() => setConfirmDeletePayment(null)} className="text-slate-400 hover:text-slate-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeletePayment(p._id)}
+                    className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                    title="Delete this payment"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {sortedPayments.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-3">No payments recorded.</p>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0 border-t border-slate-100 pt-4">
+          {confirmDeleteStaff ? (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs text-slate-500 mr-auto sm:mr-2">Delete all records for {salary.staffName}?</span>
+              <Button variant="outline" type="button" onClick={() => setConfirmDeleteStaff(false)} className="border-slate-200 text-slate-600 font-bold">
+                Cancel
+              </Button>
+              <Button variant="destructive" type="button" onClick={handleDeleteStaff} className="bg-red-600 text-white hover:bg-red-700 font-bold">
+                Confirm Delete
+              </Button>
             </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDeleteStaff(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-500 transition"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Staff Record
+            </button>
           )}
-        </div>
-      )}
-
-      {/* Legacy record note */}
-      {!hasPayments && salary.notes && (
-        <div className="mt-3 pt-3 border-t border-slate-50">
-          <p className="text-xs text-slate-500 italic">"{salary.notes}"</p>
-        </div>
-      )}
-      {!hasPayments && salary.paidAt && (
-        <p className="text-[10px] text-slate-400 mt-2">Paid: {format(new Date(salary.paidAt), 'dd/MM/yyyy')}</p>
-      )}
-
-      {/* Pay Remaining button */}
-      {isPartial && (
-        <div className="mt-3 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => setShowPayForm(v => !v)}
-            className="text-xs font-bold text-amber-600 hover:text-amber-700 transition flex items-center gap-1"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {showPayForm ? 'Cancel' : 'Pay Remaining'}
-          </button>
-          {showPayForm && (
-            <PayRemainingForm salary={salary} onPaid={() => { setShowPayForm(false); onUpdate(); }} />
-          )}
-        </div>
-      )}
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -226,6 +238,7 @@ export default function SalariesPage() {
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -237,7 +250,7 @@ export default function SalariesPage() {
   const [staffName, setStaffName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [paymentDate, setPaymentDate] = useState(todayStr());
   const [notes, setNotes] = useState('');
 
   useEffect(() => { fetchSalaries(); }, []);
@@ -270,32 +283,24 @@ export default function SalariesPage() {
 
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Salary recorded for ${staffName}`);
-        setStaffName(''); setTotalAmount(''); setPaidAmount(''); setNotes('');
+        toast.success(`Payment recorded for ${staffName}`);
+        setStaffName(''); setTotalAmount(''); setPaidAmount(''); setNotes(''); setPaymentDate(todayStr());
         setIsAdding(false);
         fetchSalaries();
       } else {
         toast.error(data.error || 'Failed to record salary');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred. Please try again.');
     }
   };
 
   const filtered = useMemo(() => {
     return salaries.filter(s => {
-      // Name search
       const matchSearch = !search || s.staffName.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = filterStatus === 'All' || s.status === filterStatus;
 
-      // Status filter
-      const matchStatus = filterStatus === 'All' || s.status === filterStatus || (!s.status && filterStatus === 'paid');
-
-      // Date Range filter
-      // Check if the overall record date or any installment date falls in range
-      const recordDate = new Date(s.paidAt || s.createdAt || Date.now());
-      const instDates = (s.payments || []).map(p => new Date(p.paidAt));
-      const allDates = [recordDate, ...instDates];
-
+      const allDates = [new Date(s.createdAt), ...s.payments.map(p => new Date(p.paidAt))];
       const matchRange = (!filterFrom || allDates.some(d => d >= new Date(filterFrom))) &&
         (!filterTo || allDates.some(d => d <= new Date(filterTo + 'T23:59:59')));
 
@@ -305,23 +310,20 @@ export default function SalariesPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const totalPaid = salaries.reduce((sum, s) => {
-      const p = (s.payments || []).reduce((acc, curr) => acc + curr.amount, 0);
-      return sum + (p || s.amount || 0);
-    }, 0);
-
+    const totalPaid = salaries.reduce((sum, s) => sum + s.payments.reduce((acc, p) => acc + p.amount, 0), 0);
     const pendingCount = salaries.filter(s => s.status === 'partial').length;
 
-    // Last 30 days total
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentPaid = salaries.reduce((sum, s) => {
-      const pTotal = (s.payments || []).filter(p => new Date(p.paidAt) >= thirtyDaysAgo).reduce((acc, curr) => acc + curr.amount, 0);
+      const pTotal = s.payments.filter(p => new Date(p.paidAt) >= thirtyDaysAgo).reduce((acc, p) => acc + p.amount, 0);
       return sum + pTotal;
     }, 0);
 
     return { totalPaid, pendingCount, recentPaid };
   }, [salaries]);
+
+  const selectedSalary = salaries.find(s => s._id === selectedId) || null;
 
   if (loading) {
     return (
@@ -368,7 +370,7 @@ export default function SalariesPage() {
           </div>
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending Clearances</p>
-            <p className="text-xl font-black text-slate-900">{stats.pendingCount} <span className="text-xs font-normal text-slate-400 uppercase">Records</span></p>
+            <p className="text-xl font-black text-slate-900">{stats.pendingCount} <span className="text-xs font-normal text-slate-400 uppercase">Staff</span></p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm flex items-center gap-4">
@@ -385,7 +387,7 @@ export default function SalariesPage() {
       {/* Add Salary Form */}
       {isAdding && (
         <form onSubmit={handleAddSalary} className="bg-white border border-amber-100 rounded-lg p-6 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">New Salary Record</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">New Payment</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Staff Name</label>
@@ -394,9 +396,14 @@ export default function SalariesPage() {
                 value={staffName}
                 onChange={e => setStaffName(e.target.value)}
                 placeholder="Full Name"
+                list="staff-names"
                 required
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
               />
+              <datalist id="staff-names">
+                {salaries.map(s => <option key={s._id} value={s.staffName} />)}
+              </datalist>
+              <p className="text-[10px] text-slate-400 ml-1">An existing name adds to that person&apos;s history instead of creating a new one.</p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
@@ -417,7 +424,7 @@ export default function SalariesPage() {
                 type="number"
                 value={paidAmount}
                 onChange={e => setPaidAmount(e.target.value)}
-                placeholder="e.g. 5000"
+                placeholder="e.g. 500"
                 min="0"
                 required
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
@@ -487,18 +494,15 @@ export default function SalariesPage() {
             />
           </div>
 
-          <div className="relative flex-1 sm:flex-initial">
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 cursor-pointer appearance-none transition"
-            >
-              <option value="All">All Payments</option>
-              <option value="partial">Partial / Pending</option>
-              <option value="paid">Fully Paid</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="pl-3 pr-8 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-400 cursor-pointer appearance-none transition"
+          >
+            <option value="All">All Payments</option>
+            <option value="partial">Partial / Pending</option>
+            <option value="paid">Fully Paid</option>
+          </select>
 
           {(search || filterFrom || filterTo || filterStatus !== 'All') && (
             <button
@@ -513,24 +517,86 @@ export default function SalariesPage() {
         <div className="lg:ml-auto flex items-center justify-between lg:justify-end gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Results</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">{filtered.length} Staff</span>
           </div>
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map(salary => (
-          <SalaryCard key={salary._id} salary={salary} onUpdate={fetchSalaries} />
-        ))}
-        {filtered.length === 0 && (
-          <div className="md:col-span-2 py-12 text-center text-slate-400 bg-white rounded-lg border border-dashed border-slate-200">
-            <CreditCard className="w-8 h-8 mx-auto mb-3 opacity-20" />
-            <p className="font-medium">{salaries.length === 0 ? 'No salary records found.' : 'No results match your filters.'}</p>
-            <p className="text-xs">Staff payments will appear here once recorded.</p>
-          </div>
-        )}
+      {/* Table */}
+      <div className="bg-white border border-slate-100 rounded-lg shadow-sm overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
+          <thead className="bg-slate-50 border-b border-slate-100">
+            <tr>
+              <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Staff</th>
+              <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Total Paid</th>
+              <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Agreed Total</th>
+              <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Remaining</th>
+              <th className="text-center px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
+              <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Last Paid</th>
+              <th className="px-6 py-4"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {filtered.map((salary) => {
+              const totalPaid = salary.payments.reduce((s, p) => s + p.amount, 0);
+              const remaining = salary.totalAmount != null ? salary.totalAmount - totalPaid : undefined;
+              const lastPayment = [...salary.payments].sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0];
+              return (
+                <tr key={salary._id} className="hover:bg-slate-50 transition">
+                  <td className="px-6 py-4">
+                    <button onClick={() => setSelectedId(salary._id)} className="flex items-center gap-2.5 font-bold text-slate-800 hover:text-amber-600 transition">
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      {salary.staffName}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-right font-bold text-slate-900">₹{totalPaid.toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-4 text-right text-slate-500">{salary.totalAmount != null ? `₹${salary.totalAmount.toLocaleString('en-IN')}` : '—'}</td>
+                  <td className="px-6 py-4 text-right text-slate-500">{remaining != null ? `₹${remaining.toLocaleString('en-IN')}` : '—'}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${salary.status === 'partial' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-700'}`}>
+                      {salary.status === 'partial' ? 'Partial' : 'Paid'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-slate-500">{lastPayment ? format(new Date(lastPayment.paidAt), 'dd/MM/yyyy') : '—'}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => setSelectedId(salary._id)}
+                      className="text-xs font-bold text-amber-600 hover:text-amber-700 transition"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                  <CreditCard className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">{salaries.length === 0 ? 'No salary records found.' : 'No results match your filters.'}</p>
+                  <p className="text-xs">Staff payments will appear here once recorded.</p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {selectedSalary && (
+        <StaffDetailModal
+          salary={selectedSalary}
+          onUpdate={(updated) => {
+            setSalaries((prev) => prev.map((s) => s._id === updated._id ? { ...s, ...updated } : s));
+          }}
+          onDeleted={() => {
+            setSalaries((prev) => prev.filter((s) => s._id !== selectedSalary._id));
+            setSelectedId(null);
+          }}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }

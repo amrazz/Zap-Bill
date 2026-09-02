@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Search, Wallet, TrendingUp, Filter, ChevronDown, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface Expense {
   _id: string;
@@ -39,6 +41,29 @@ export default function ExpensesPage() {
     fetch('/api/expenses')
       .then(r => r.json())
       .then(data => { setExpenses(data); setLoading(false); });
+  };
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteExpense = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/expenses/${deleteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Expense deleted');
+        setExpenses((prev) => prev.filter((e) => e._id !== deleteId));
+        setDeleteId(null);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to delete expense');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -310,6 +335,7 @@ export default function ExpensesPage() {
               <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Description</th>
               <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Category</th>
               <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Amount</th>
+              <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -323,11 +349,20 @@ export default function ExpensesPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right font-bold text-slate-900">₹{expense.amount.toFixed(2)}</td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => setDeleteId(expense._id)}
+                    className="text-slate-300 hover:text-red-500 transition p-1.5 rounded-md hover:bg-red-50"
+                    title="Delete expense"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                   {expenses.length === 0 ? 'No expenses recorded yet.' : 'No results match your filters.'}
                 </td>
               </tr>
@@ -335,6 +370,36 @@ export default function ExpensesPage() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!deleteId} onOpenChange={(open: boolean) => !open && setDeleteId(null)}>
+        <DialogContent className="sm:max-w-md bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Delete Expense</DialogTitle>
+            <DialogDescription className="text-slate-500">
+              This will permanently remove this expense record. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setDeleteId(null)}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50 font-bold"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={handleDeleteExpense}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700 font-bold"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

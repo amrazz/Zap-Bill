@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { db } from '@/lib/db/client';
 import { salaries, salaryPayments } from '@/lib/db/schema';
@@ -14,7 +14,7 @@ function serializeSalary(salary: typeof salaries.$inferSelect, payments: (typeof
     totalAmount: salary.totalAmount,
     status: salary.status,
     createdAt: salary.createdAt,
-    payments: payments.map((p) => ({ amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
+    payments: payments.map((p) => ({ _id: p.id, amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
   };
 }
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     const { staffName, paidAmount, totalAmount, paidAt, notes } = await request.json();
 
-    if (!staffName) return NextResponse.json({ error: 'Staff name is required' }, { status: 400 });
+    if (!staffName || !staffName.trim()) return NextResponse.json({ error: 'Staff name is required' }, { status: 400 });
     if (paidAmount === undefined || paidAmount === null || paidAmount === '') {
       return NextResponse.json({ error: 'Paid amount is required' }, { status: 400 });
     }
@@ -64,21 +64,35 @@ export async function POST(request: NextRequest) {
     }
 
     const total = totalAmount ? Number(totalAmount) : undefined;
-    const status = total && paid < total ? 'partial' : 'paid';
+    const trimmedName = staffName.trim();
 
-    const salary = db
-      .insert(salaries)
-      .values({ staffName, month: format(payDate, 'MMMM'), year: payDate.getFullYear(), totalAmount: total, status })
-      .returning()
-      .get();
+    // A staff member is paid repeatedly (often daily) — find their existing
+    // record instead of creating a new one every time, so they show up as a
+    // single person with one running history rather than duplicate cards.
+    const existing = db
+      .select()
+      .from(salaries)
+      .all()
+      .find((s) => s.staffName.trim().toLowerCase() === trimmedName.toLowerCase());
 
-    const payment = db
-      .insert(salaryPayments)
-      .values({ salaryId: salary.id, amount: paid, paidAt: payDate.toISOString(), notes })
-      .returning()
-      .get();
+    const salary = existing
+      ? total !== undefined
+        ? db.update(salaries).set({ totalAmount: total }).where(eq(salaries.id, existing.id)).returning().get()
+        : existing
+      : db
+          .insert(salaries)
+          .values({ staffName: trimmedName, month: format(payDate, 'MMMM'), year: payDate.getFullYear(), totalAmount: total, status: 'paid' })
+          .returning()
+          .get();
 
-    return NextResponse.json(serializeSalary(salary, [payment]), { status: 201 });
+    db.insert(salaryPayments).values({ salaryId: salary.id, amount: paid, paidAt: payDate.toISOString(), notes }).run();
+
+    const allPayments = db.select().from(salaryPayments).where(eq(salaryPayments.salaryId, salary.id)).all();
+    const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+    const status = salary.totalAmount != null && totalPaid < salary.totalAmount ? 'partial' : 'paid';
+    const updated = db.update(salaries).set({ status }).where(eq(salaries.id, salary.id)).returning().get();
+
+    return NextResponse.json(serializeSalary(updated, allPayments), { status: 201 });
   } catch (error) {
     console.error('POST salary error:', error);
     return NextResponse.json({ error: 'Failed to create salary record' }, { status: 500 });

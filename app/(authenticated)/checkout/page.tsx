@@ -11,20 +11,22 @@ interface Dish { _id: string; name: string; category?: string; imageUrl?: string
 interface CartItem { dishId: string; dishName: string; variantLabel: string; price: number; qty: number; }
 
 // ── Printable Bill ──────────────────────────────────────────────
-function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
+function BillPrint({ items, subtotal, takeawayCharge, billNumber, orderType, printRef }: {
   items: CartItem[];
   subtotal: number;
+  takeawayCharge: number;
   billNumber: string;
   orderType: string;
   printRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const now = new Date();
+  const grandTotal = subtotal + takeawayCharge;
   return (
     <div ref={printRef} className="hidden print:block font-mono font-normal text-[11px] p-4 pt-6 w-full text-black">
       <div className="text-center mb-4">
         <h2 className="text-base font-bold uppercase tracking-tight mb-1">Indian Bakery & Restaurant</h2>
         <p>Sulthan Bathery, Wayanad</p>
-        <p className="mt-1">Ph: +91 8606086318, 04936 212155</p>
+        <p className="mt-1">Ph: +91 9961240308, 04936 212155</p>
       </div>
 
       <div className="flex justify-between items-end border-b border-dashed border-black pb-2 mb-2">
@@ -71,9 +73,15 @@ function BillPrint({ items, subtotal, billNumber, orderType, printRef }: {
           <span>Subtotal</span>
           <span>₹{formatMoney(subtotal)}</span>
         </div>
+        {takeawayCharge > 0 && (
+          <div className="flex justify-between">
+            <span>Takeaway Charge</span>
+            <span>₹{formatMoney(takeawayCharge)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-bold text-xs mt-1 border-t border-black pt-1">
           <span>GRAND TOTAL</span>
-          <span>₹{formatMoney(subtotal)}</span>
+          <span>₹{formatMoney(grandTotal)}</span>
         </div>
       </div>
 
@@ -237,9 +245,10 @@ function VariantModal({ dish, onAdd, onClose }: {
   );
 }
 
-function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, onCancel, isSaving }: {
+function PrintPreviewModal({ items, subtotal, takeawayCharge, billNumber, orderType, onConfirm, onCancel, isSaving }: {
   items: CartItem[];
   subtotal: number;
+  takeawayCharge: number;
   billNumber: string;
   orderType: string;
   onConfirm: () => void;
@@ -247,6 +256,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
   isSaving: boolean;
 }) {
   const now = new Date();
+  const grandTotal = subtotal + takeawayCharge;
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -268,7 +278,7 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
             <div className="text-center space-y-0.5">
               <p className="font-bold text-slate-900 text-sm uppercase tracking-tight">Indian Bakery & Restaurant</p>
               <p>Sulthan Bathery, Wayanad</p>
-              <p>Ph: +91 8606086318</p>
+              <p>Ph: +91 9961240308, 04936 212155</p>
             </div>
 
             <div className="border-t border-b border-dashed border-slate-200 py-2 flex justify-between uppercase">
@@ -311,9 +321,19 @@ function PrintPreviewModal({ items, subtotal, billNumber, orderType, onConfirm, 
             </table>
 
             <div className="border-t-2 border-slate-900 pt-3 space-y-1">
-              <div className="flex justify-between font-bold text-sm text-slate-900">
-                <span>GRAND TOTAL</span>
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Subtotal</span>
                 <span>₹{formatMoney(subtotal)}</span>
+              </div>
+              {takeawayCharge > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Takeaway Charge</span>
+                  <span>₹{formatMoney(takeawayCharge)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-sm text-slate-900 pt-1 border-t border-slate-100">
+                <span>GRAND TOTAL</span>
+                <span>₹{formatMoney(grandTotal)}</span>
               </div>
             </div>
           </div>
@@ -355,6 +375,8 @@ export default function PosPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [activeDepartment, setActiveDepartment] = useState<'Restaurant' | 'Bakery'>('Restaurant');
   const [orderType, setOrderType] = useState('Dine-In');
+  const [takeawayCharge, setTakeawayCharge] = useState(0);
+  const [printerWidthMm, setPrinterWidthMm] = useState(80);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -368,7 +390,8 @@ export default function PosPage() {
 
   // Builds the printable receipt as a standalone HTML document — shared by
   // both the Electron native print path and the browser/dev-mode fallback below.
-  const buildReceiptHtml = (bill: { items: any[], subtotal: number, billNumber: string, orderType: string, department: string }) => {
+  const buildReceiptHtml = (bill: { items: any[], subtotal: number, takeawayCharge: number, billNumber: string, orderType: string, department: string }) => {
+    const grandTotal = bill.subtotal + bill.takeawayCharge;
     const rows = bill.items.map(i => `
       <tr>
         <td style="padding:4px 0;vertical-align:top;">
@@ -386,9 +409,9 @@ export default function PosPage() {
     `).join('');
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-      /* ── Page: 80mm thermal, zero browser margins ── */
+      /* ── Page: thermal roll width, zero browser margins ── */
       @page {
-        size: 80mm auto;
+        size: ${printerWidthMm}mm auto;
         margin: 4mm 3mm;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -420,7 +443,7 @@ export default function PosPage() {
     <div class="center" style="margin-bottom:10px; color:#000;">
       <div style="font-size:18px;font-weight:bold;">INDIAN BAKERY &amp; RESTAURANT</div>
       <div style="font-size:12px;margin-top:2px;">Sulthan Bathery, Wayanad</div>
-      <div style="font-size:12px;">Ph: +91 8606086318, 04936 212155</div>
+      <div style="font-size:12px;">Ph: +91 9961240308, 04936 212155</div>
     </div>
 
     <!-- Bill meta -->
@@ -454,9 +477,13 @@ export default function PosPage() {
     <div class="row" style="font-size:12px;padding:2px 0;">
       <span>Subtotal</span><span>&#8377;${formatMoney(bill.subtotal)}</span>
     </div>
+    ${bill.takeawayCharge > 0 ? `
+    <div class="row" style="font-size:12px;padding:2px 0;">
+      <span>Takeaway Charge</span><span>&#8377;${formatMoney(bill.takeawayCharge)}</span>
+    </div>` : ''}
     <div class="solid"></div>
     <div class="row" style="font-weight:bold;font-size:15px;padding:6px 0 0;">
-      <span>GRAND TOTAL</span><span>&#8377;${formatMoney(bill.subtotal)}</span>
+      <span>GRAND TOTAL</span><span>&#8377;${formatMoney(grandTotal)}</span>
     </div>
 
     <!-- Footer -->
@@ -474,11 +501,11 @@ export default function PosPage() {
   // once this resolves successfully, so a cancelled print never gets counted as a sale.
   // In a plain browser (dev mode) there's no such signal, so this falls back to
   // the 'afterprint' event, which fires once the print dialog closes either way.
-  const printReceipt = (bill: { items: any[], subtotal: number, billNumber: string, orderType: string, department: string }): Promise<{ success: boolean; error?: string }> => {
+  const printReceipt = (bill: { items: any[], subtotal: number, takeawayCharge: number, billNumber: string, orderType: string, department: string }): Promise<{ success: boolean; error?: string }> => {
     const html = buildReceiptHtml(bill);
 
     if (window.electronAPI?.printReceipt) {
-      return window.electronAPI.printReceipt(html);
+      return window.electronAPI.printReceipt(html, printerWidthMm);
     }
 
     return new Promise((resolve) => {
@@ -537,6 +564,11 @@ export default function PosPage() {
     fetch('/api/categories')
       .then(r => r.json())
       .then(data => setCategories(data));
+
+    fetch('/api/settings/printer')
+      .then(r => r.json())
+      .then(d => { if (d.printerWidthMm) setPrinterWidthMm(d.printerWidthMm); })
+      .catch(() => { });
   }, []);
 
   const filteredDishes = dishes.filter((d: any) => {
@@ -571,7 +603,15 @@ export default function PosPage() {
     setCart((prev) => prev.map((c, i) => i === idx ? { ...c, qty: Math.max(0.001, val) } : c));
   };
 
+  const isTakeaway = orderType === 'Takeaway';
+  const handleOrderTypeChange = (type: string) => {
+    setOrderType(type);
+    if (type !== 'Takeaway') setTakeawayCharge(0);
+  };
+
   const subtotal = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
+  const effectiveTakeawayCharge = isTakeaway ? takeawayCharge : 0;
+  const grandTotal = subtotal + effectiveTakeawayCharge;
 
   function handleSaveAndPrint() {
     const billNum = `${Date.now().toString().slice(-6)}`;
@@ -584,7 +624,7 @@ export default function PosPage() {
     // Snapshot the cart before printing — printing happens first, and only a
     // successful print leads to the bill being saved (an order is only "complete"
     // once its bill has actually printed, not just been queued).
-    const printData = { items: [...cart], subtotal, billNumber: lastBillNumber, orderType, department: activeDepartment };
+    const printData = { items: [...cart], subtotal, takeawayCharge: effectiveTakeawayCharge, billNumber: lastBillNumber, orderType, department: activeDepartment };
 
     try {
       const printResult = await printReceipt(printData);
@@ -596,11 +636,12 @@ export default function PosPage() {
       const res = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart, subtotal, orderType }),
+        body: JSON.stringify({ items: cart, subtotal, takeawayCharge: effectiveTakeawayCharge, orderType }),
       });
 
       if (res.ok) {
         setCart([]);
+        setTakeawayCharge(0);
         setShowPreview(false);
         toast.success("Bill printed and saved successfully");
       } else {
@@ -627,13 +668,14 @@ export default function PosPage() {
   return (
     <>
       {/* Print-only bill */}
-      <BillPrint items={cart.length > 0 ? cart : []} subtotal={subtotal} billNumber={lastBillNumber} orderType={orderType} printRef={printRef} />
+      <BillPrint items={cart.length > 0 ? cart : []} subtotal={subtotal} takeawayCharge={effectiveTakeawayCharge} billNumber={lastBillNumber} orderType={orderType} printRef={printRef} />
 
       {/* Finalize/Preview modal */}
       {showPreview && (
         <PrintPreviewModal
           items={cart}
           subtotal={subtotal}
+          takeawayCharge={effectiveTakeawayCharge}
           billNumber={lastBillNumber}
           orderType={orderType}
           onConfirm={finalizeOrder}
@@ -773,7 +815,7 @@ export default function PosPage() {
                 <ShoppingCart className="w-5 h-5" />
                 <span>{cart.length} Items</span>
               </div>
-              <span>View Order — ₹{subtotal.toFixed(0)}</span>
+              <span>View Order — ₹{grandTotal.toFixed(0)}</span>
             </button>
           </div>
         )}
@@ -843,13 +885,40 @@ export default function PosPage() {
 
             {activeDepartment !== 'Bakery' && (
               <div>
+                {isTakeaway && (
+                  <div className="flex items-center justify-between gap-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <span className="text-xs font-semibold text-amber-700">Takeaway Charge ₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0"
+                      value={takeawayCharge || ''}
+                      onChange={(e) => setTakeawayCharge(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-20 px-2 py-1 text-sm text-right bg-white border border-amber-200 rounded-md text-amber-800 font-bold focus:outline-none focus:ring-1 focus:ring-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                )}
                 <p className="text-xs text-slate-500 mb-2 font-medium">Order Type</p>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                   {['Dine-In', 'Takeaway', 'Delivery'].map(type => (
-                    <button key={type} onClick={() => setOrderType(type)} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${orderType === type ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <button key={type} onClick={() => handleOrderTypeChange(type)} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${orderType === type ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>
                       {type}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {effectiveTakeawayCharge > 0 && (
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Subtotal</span>
+                  <span>₹{formatMoney(subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-amber-600 font-medium">
+                  <span>Takeaway Charge</span>
+                  <span>₹{formatMoney(effectiveTakeawayCharge)}</span>
                 </div>
               </div>
             )}
@@ -858,7 +927,7 @@ export default function PosPage() {
               <span className="text-sm text-slate-600">{cart.length} item(s)</span>
               <div className="text-right">
                 <p className="text-xs text-slate-400">Grand Total</p>
-                <p className="text-2xl font-bold text-slate-900">₹{formatMoney(subtotal)}</p>
+                <p className="text-2xl font-bold text-slate-900">₹{formatMoney(grandTotal)}</p>
               </div>
             </div>
             <button

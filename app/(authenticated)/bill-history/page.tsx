@@ -17,6 +17,7 @@ interface Bill {
   _id: string;
   items: BillItem[];
   subtotal: number;
+  takeawayCharge?: number;
   orderType?: string;
   createdAt: string;
   isDeleted?: boolean;
@@ -135,6 +136,8 @@ export default function BillsPage() {
     const w = window.open('', '_blank', 'width=400,height=600');
     if (!w) return;
     const billNum = bill._id.slice(-6).toUpperCase();
+    const takeawayCharge = bill.takeawayCharge || 0;
+    const grandTotal = bill.subtotal + takeawayCharge;
     const rows = bill.items.map((i) => `
       <tr>
         <td style="padding:4px 0;padding-right:4px;">
@@ -172,7 +175,7 @@ export default function BillsPage() {
       <h2>Indian Bakery & Restaurant</h2>
       <p>Dottappankulam, Sulthan Bathery</p>
       <p>Wayanad, 673692</p>
-      <p style="margin-bottom:8px;">Ph: 04936212155, +91 8606086318</p>
+      <p style="margin-bottom:8px;">Ph: 04936212155, +91 9961240308</p>
 
       <div class="flex" style="border-bottom:1px dashed #000;padding-bottom:4px;margin-bottom:8px;align-items:flex-end;">
         <div>
@@ -202,9 +205,14 @@ export default function BillsPage() {
           <span>Subtotal</span>
           <span>₹${bill.subtotal.toFixed(2)}</span>
         </div>
+        ${takeawayCharge > 0 ? `
+        <div class="flex">
+          <span>Takeaway Charge</span>
+          <span>₹${takeawayCharge.toFixed(2)}</span>
+        </div>` : ''}
         <div class="flex border-t-solid" style="font-weight:bold;font-size:11px;padding-top:2px;margin-top:4px;">
           <span>GRAND TOTAL</span>
-          <span>₹${bill.subtotal.toFixed(2)}</span>
+          <span>₹${grandTotal.toFixed(2)}</span>
         </div>
       </div>
       
@@ -402,7 +410,7 @@ export default function BillsPage() {
                       <span className={cn(
                         "text-base font-bold text-slate-800 flex-shrink-0",
                         bill.isDeleted && "line-through opacity-50"
-                      )}>₹{bill.subtotal.toFixed(2)}</span>
+                      )}>₹{(bill.subtotal + (bill.takeawayCharge || 0)).toFixed(2)}</span>
                       <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {isExpanded && (
@@ -439,9 +447,15 @@ export default function BillsPage() {
                                 <td className="px-4 py-2 text-slate-600" colSpan={3}>Subtotal</td>
                                 <td className="px-4 py-2 text-right text-slate-700">₹{bill.subtotal.toFixed(2)}</td>
                               </tr>
+                              {!!bill.takeawayCharge && (
+                                <tr className="bg-slate-50 font-semibold border-t border-slate-100">
+                                  <td className="px-4 py-2 text-amber-600" colSpan={3}>Takeaway Charge</td>
+                                  <td className="px-4 py-2 text-right text-amber-600">₹{bill.takeawayCharge.toFixed(2)}</td>
+                                </tr>
+                              )}
                               <tr className="bg-amber-50 font-bold border-t border-amber-100 text-base">
                                 <td className="px-4 py-3 text-amber-900" colSpan={3}>Grand Total</td>
-                                <td className="px-4 py-3 text-right text-amber-900">₹{bill.subtotal.toFixed(2)}</td>
+                                <td className="px-4 py-3 text-right text-amber-900">₹{(bill.subtotal + (bill.takeawayCharge || 0)).toFixed(2)}</td>
                               </tr>
                             </tfoot>
                           </table>
