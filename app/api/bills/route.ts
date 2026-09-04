@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, gte, lte, eq, like, inArray, desc, sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { format } from 'date-fns';
+import { db, isDateClosed } from '@/lib/db/client';
 import { bills, billItems } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
@@ -94,6 +95,12 @@ export async function POST(request: NextRequest) {
 
     if (!items || items.length === 0 || !orderType) {
       return NextResponse.json({ error: 'Items and order type are required.' }, { status: 400 });
+    }
+
+    // A bill's date is always "now" — there's no way to backdate one through
+    // the checkout flow — so it's today that must not be closed yet.
+    if (isDateClosed(format(new Date(), 'yyyy-MM-dd'))) {
+      return NextResponse.json({ error: 'Today has been closed for business. Ask an admin to reopen it in Daily Closing first.' }, { status: 403 });
     }
 
     const rawItems = items as { dishName: string; variantLabel: string; price: number; qty: number }[];

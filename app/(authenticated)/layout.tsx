@@ -14,6 +14,7 @@ import {
   LogOut,
   Settings,
   HardDrive,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
         { href: "/manage-menu", label: "Menu", icon: Package },
         { href: "/admin/expenses", label: "Expenses", icon: Wallet },
         { href: "/admin/salaries", label: "Salaries", icon: Users },
+        { href: "/admin/daily-closing", label: "Daily Closing", icon: ClipboardCheck },
         { href: "/settings/staff", label: "Staff", icon: Settings },
         { href: "/settings/backup", label: "Backup", icon: HardDrive },
       ]

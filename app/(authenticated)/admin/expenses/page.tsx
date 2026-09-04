@@ -12,6 +12,7 @@ interface Expense {
   description: string;
   amount: number;
   category: string;
+  paymentMethod?: 'Cash' | 'Online';
   date: string;
   department?: string;
 }
@@ -33,6 +34,7 @@ export default function ExpensesPage() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Miscellaneous');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Online'>('Cash');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => { fetchExpenses(); }, []);
@@ -81,6 +83,7 @@ export default function ExpensesPage() {
           description,
           amount: Number(amount),
           category,
+          paymentMethod,
           date: new Date(date)
         })
       });
@@ -88,7 +91,7 @@ export default function ExpensesPage() {
       const data = await res.json();
       if (res.ok) {
         toast.success(`Expense "${description}" recorded`);
-        setDescription(''); setAmount(''); setIsAdding(false);
+        setDescription(''); setAmount(''); setPaymentMethod('Cash'); setIsAdding(false);
         fetchExpenses();
       } else {
         toast.error(data.error || 'Failed to record expense');
@@ -251,6 +254,21 @@ export default function ExpensesPage() {
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Method</label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                {(['Cash', 'Online'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPaymentMethod(m)}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${paymentMethod === m ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {m === 'Online' ? 'Online (GPay/UPI)' : m}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-100 transition">
@@ -334,6 +352,7 @@ export default function ExpensesPage() {
               <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Date</th>
               <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Description</th>
               <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Category</th>
+              <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Payment</th>
               <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Amount</th>
               <th className="px-6 py-4"></th>
             </tr>
@@ -346,6 +365,11 @@ export default function ExpensesPage() {
                 <td className="px-6 py-4">
                   <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wide">
                     {expense.category}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${expense.paymentMethod === 'Online' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                    {expense.paymentMethod === 'Online' ? 'Online' : 'Cash'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right font-bold text-slate-900">₹{expense.amount.toFixed(2)}</td>
@@ -362,7 +386,7 @@ export default function ExpensesPage() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                   {expenses.length === 0 ? 'No expenses recorded yet.' : 'No results match your filters.'}
                 </td>
               </tr>

@@ -77,6 +77,7 @@ export const expenses = sqliteTable('expenses', {
   category: text('category', {
     enum: ['Rent', 'Electricity', 'Supplies', 'Maintenance', 'Miscellaneous'],
   }).notNull().default('Miscellaneous'),
+  paymentMethod: text('payment_method', { enum: ['Cash', 'Online'] }).notNull().default('Cash'),
   date: text('date').notNull(),
   createdAt: createdAt(),
   sourceId: text('source_id').unique(),
@@ -97,8 +98,36 @@ export const salaryPayments = sqliteTable('salary_payments', {
   id: id(),
   salaryId: text('salary_id').notNull().references(() => salaries.id, { onDelete: 'cascade' }),
   amount: real('amount').notNull(),
+  paymentMethod: text('payment_method', { enum: ['Cash', 'Online'] }).notNull().default('Cash'),
   paidAt: text('paid_at').notNull(),
   notes: text('notes'),
+});
+
+export const dailyClosings = sqliteTable('daily_closings', {
+  id: id(),
+  date: text('date').notNull().unique(), // 'yyyy-MM-dd'
+  // Typed in by the admin from the physical ledger book at closing time — the
+  // system can't know the real cash/online split itself: payment happens after
+  // the bill is printed, and some small/off-menu sales are never billed at all.
+  cashReceived: real('cash_received').notNull(),
+  onlineReceived: real('online_received').notNull(),
+  totalSales: real('total_sales').notNull(),
+  cashExpenses: real('cash_expenses').notNull(),
+  onlineExpenses: real('online_expenses').notNull(),
+  totalExpenses: real('total_expenses').notNull(),
+  cashSalaryPaid: real('cash_salary_paid').notNull(),
+  onlineSalaryPaid: real('online_salary_paid').notNull(),
+  totalSalaryPaid: real('total_salary_paid').notNull(),
+  netCashInDrawer: real('net_cash_in_drawer').notNull(),
+  netOnline: real('net_online').notNull(),
+  netOverall: real('net_overall').notNull(),
+  billCount: integer('bill_count').notNull(),
+  expenseCount: integer('expense_count').notNull(),
+  salaryPaymentCount: integer('salary_payment_count').notNull(),
+  notes: text('notes'),
+  closedBy: text('closed_by').notNull(),
+  closedAt: text('closed_at').notNull(),
+  createdAt: createdAt(),
 });
 
 export const CREATE_TABLES_SQL = `
@@ -163,6 +192,7 @@ export const CREATE_TABLES_SQL = `
     description TEXT NOT NULL,
     amount REAL NOT NULL,
     category TEXT NOT NULL DEFAULT 'Miscellaneous',
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
     date TEXT NOT NULL,
     created_at TEXT NOT NULL,
     source_id TEXT UNIQUE
@@ -181,8 +211,32 @@ export const CREATE_TABLES_SQL = `
     id TEXT PRIMARY KEY,
     salary_id TEXT NOT NULL REFERENCES salaries(id) ON DELETE CASCADE,
     amount REAL NOT NULL,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
     paid_at TEXT NOT NULL,
     notes TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_salary_payments_salary_id ON salary_payments(salary_id);
+  CREATE TABLE IF NOT EXISTS daily_closings (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,
+    cash_received REAL NOT NULL,
+    online_received REAL NOT NULL,
+    total_sales REAL NOT NULL,
+    cash_expenses REAL NOT NULL,
+    online_expenses REAL NOT NULL,
+    total_expenses REAL NOT NULL,
+    cash_salary_paid REAL NOT NULL,
+    online_salary_paid REAL NOT NULL,
+    total_salary_paid REAL NOT NULL,
+    net_cash_in_drawer REAL NOT NULL,
+    net_online REAL NOT NULL,
+    net_overall REAL NOT NULL,
+    bill_count INTEGER NOT NULL,
+    expense_count INTEGER NOT NULL,
+    salary_payment_count INTEGER NOT NULL,
+    notes TEXT,
+    closed_by TEXT NOT NULL,
+    closed_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
 `;

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { format } from 'date-fns';
+import { db, isDateClosed } from '@/lib/db/client';
 import { salaries, salaryPayments } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
@@ -21,6 +22,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!payment || payment.salaryId !== id) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
+    if (isDateClosed(format(new Date(payment.paidAt), 'yyyy-MM-dd'))) {
+      return NextResponse.json({ error: "This payment's date has been closed. Reopen it in Daily Closing first." }, { status: 403 });
+    }
 
     db.delete(salaryPayments).where(eq(salaryPayments.id, paymentId)).run();
 
@@ -35,7 +39,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       totalAmount: updated.totalAmount,
       status: updated.status,
       createdAt: updated.createdAt,
-      payments: remaining.map((p) => ({ _id: p.id, amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
+      payments: remaining.map((p) => ({ _id: p.id, amount: p.amount, paymentMethod: p.paymentMethod, paidAt: p.paidAt, notes: p.notes })),
     });
   } catch (error) {
     console.error('DELETE salary payment error:', error);

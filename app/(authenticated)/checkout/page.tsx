@@ -645,7 +645,8 @@ export default function PosPage() {
         setShowPreview(false);
         toast.success("Bill printed and saved successfully");
       } else {
-        toast.error("Bill printed, but saving the order failed. Please note it down and contact support.");
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ? `Bill printed, but saving failed: ${data.error}` : "Bill printed, but saving the order failed. Please note it down and contact support.");
       }
     } catch (err) {
       toast.error("An error occurred while printing/saving.");

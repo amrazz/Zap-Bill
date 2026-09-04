@@ -41,6 +41,7 @@ export default function BackupPage() {
   const [printerWidthMm, setPrinterWidthMm] = useState(80);
   const [savingPrinter, setSavingPrinter] = useState(false);
   const [testPrinting, setTestPrinting] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
     // Feature-detect the Electron preload bridge on mount — window.electronAPI
@@ -51,6 +52,8 @@ export default function BackupPage() {
       .then((r) => r.json())
       .then((d) => { if (d.printerWidthMm) setPrinterWidthMm(d.printerWidthMm); })
       .catch(() => { });
+
+    window.electronAPI?.getAppVersion?.().then(setAppVersion).catch(() => { });
   }, []);
 
   const handleSavePrinterWidth = async () => {
@@ -279,6 +282,10 @@ export default function BackupPage() {
         <HardDrive className="w-4 h-4 shrink-0" />
         Data is stored locally on this PC only. Take regular backups so you don&apos;t lose anything if this computer is lost or damaged.
       </div>
+
+      {appVersion && (
+        <p className="text-center text-xs text-slate-300">Zapbill v{appVersion}</p>
+      )}
     </div>
   );
 }

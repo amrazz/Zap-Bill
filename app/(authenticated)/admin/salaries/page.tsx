@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 interface PaymentInstallment {
   _id: string;
   amount: number;
+  paymentMethod?: 'Cash' | 'Online';
   paidAt: string;
   notes?: string;
 }
@@ -37,6 +38,7 @@ function StaffDetailModal({ salary, onUpdate, onDeleted, onClose }: {
   const [amount, setAmount] = useState('');
   const [paidAt, setPaidAt] = useState(todayStr());
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Online'>('Cash');
   const [saving, setSaving] = useState(false);
   const [confirmDeleteStaff, setConfirmDeleteStaff] = useState(false);
   const [confirmDeletePayment, setConfirmDeletePayment] = useState<string | null>(null);
@@ -57,12 +59,12 @@ function StaffDetailModal({ salary, onUpdate, onDeleted, onClose }: {
       const res = await fetch('/api/salaries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ staffName: salary.staffName, paidAmount: Number(amount), paidAt, notes }),
+        body: JSON.stringify({ staffName: salary.staffName, paidAmount: Number(amount), paidAt, notes, paymentMethod }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(`Payment of ₹${Number(amount).toLocaleString()} recorded for ${salary.staffName}`);
-        setAmount(''); setNotes(''); setPaidAt(todayStr());
+        setAmount(''); setNotes(''); setPaidAt(todayStr()); setPaymentMethod('Cash');
         onUpdate(data);
       } else {
         toast.error(data.error || 'Failed to record payment');
@@ -163,7 +165,19 @@ function StaffDetailModal({ salary, onUpdate, onDeleted, onClose }: {
             onChange={(e) => setNotes(e.target.value)}
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
           />
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex bg-white p-1 rounded-lg border border-slate-200">
+              {(['Cash', 'Online'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPaymentMethod(m)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition ${paymentMethod === m ? 'bg-amber-100 text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
             <button type="submit" disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50">
               {saving ? 'Saving…' : 'Record Payment'}
             </button>
@@ -181,6 +195,9 @@ function StaffDetailModal({ salary, onUpdate, onDeleted, onClose }: {
                 <div>
                   <span className="font-bold text-slate-800">₹{p.amount.toLocaleString('en-IN')}</span>
                   <span className="text-slate-400 ml-2">{format(new Date(p.paidAt), 'dd/MM/yyyy')}</span>
+                  <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${p.paymentMethod === 'Online' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                    {p.paymentMethod === 'Online' ? 'Online' : 'Cash'}
+                  </span>
                   {p.notes && <span className="text-slate-400 italic ml-2">· {p.notes}</span>}
                 </div>
                 {confirmDeletePayment === p._id ? (
@@ -252,6 +269,7 @@ export default function SalariesPage() {
   const [paidAmount, setPaidAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(todayStr());
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Online'>('Cash');
 
   useEffect(() => { fetchSalaries(); }, []);
 
@@ -278,13 +296,14 @@ export default function SalariesPage() {
           paidAmount: Number(paidAmount),
           paidAt: paymentDate,
           notes,
+          paymentMethod,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
         toast.success(`Payment recorded for ${staffName}`);
-        setStaffName(''); setTotalAmount(''); setPaidAmount(''); setNotes(''); setPaymentDate(todayStr());
+        setStaffName(''); setTotalAmount(''); setPaidAmount(''); setNotes(''); setPaymentDate(todayStr()); setPaymentMethod('Cash');
         setIsAdding(false);
         fetchSalaries();
       } else {
@@ -439,6 +458,21 @@ export default function SalariesPage() {
                 onChange={e => setPaymentDate(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition"
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Method</label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                {(['Cash', 'Online'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPaymentMethod(m)}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${paymentMethod === m ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {m === 'Online' ? 'Online (GPay/UPI)' : m}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Notes (Optional)</label>

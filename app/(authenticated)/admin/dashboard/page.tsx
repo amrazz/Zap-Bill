@@ -14,7 +14,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -216,19 +216,13 @@ export default function DashboardPage() {
                 <h3 className="font-bold text-slate-800">Sales vs Expenses</h3>
                 <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Sales</div>
-                  <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300" /> Expenses</div>
+                  <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Expenses</div>
                 </div>
               </div>
               <div className="h-[300px] w-full min-w-0 mt-4 relative">
                 {chartData && chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
+                    <BarChart data={chartData} barGap={4} barCategoryGap={chartData.length <= 3 ? '35%' : '20%'}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis
                         dataKey="name"
@@ -242,14 +236,16 @@ export default function DashboardPage() {
                         tickLine={false}
                         tick={{ fontSize: 10, fill: '#64748b' }}
                         tickFormatter={(val: any) => `₹${Number(val).toLocaleString()}`}
+                        width={56}
                       />
                       <Tooltip
-                        formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                        cursor={{ fill: '#f8fafc' }}
+                        formatter={(value: any, name: string | number | undefined) => [`₹${Number(value).toLocaleString()}`, name === 'sales' ? 'Sales' : 'Expenses']}
+                        contentStyle={{ borderRadius: '12px', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
                       />
-                      <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
-                      <Area type="monotone" dataKey="expenses" stroke="#cbd5e1" strokeWidth={2} fillOpacity={0} />
-                    </AreaChart>
+                      <Bar dataKey="sales" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="expenses" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400 text-xs font-medium">

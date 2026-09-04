@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { desc } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { format } from 'date-fns';
+import { db, isDateClosed } from '@/lib/db/client';
 import { expenses } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
@@ -26,13 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { description, amount, category, date } = await request.json();
+    const { description, amount, category, date, paymentMethod } = await request.json();
 
     if (!description) return NextResponse.json({ error: 'Description is required' }, { status: 400 });
     if (amount === undefined || amount === null || amount === '') {
       return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
     }
     if (!category) return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+    if (paymentMethod !== undefined && paymentMethod !== 'Cash' && paymentMethod !== 'Online') {
+      return NextResponse.json({ error: 'Payment method must be Cash or Online' }, { status: 400 });
+    }
 
     const expenseDate = date ? new Date(date) : new Date();
     const numAmount = Number(amount);
@@ -40,9 +44,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Amount must be a number' }, { status: 400 });
     }
 
+    if (isDateClosed(format(expenseDate, 'yyyy-MM-dd'))) {
+      return NextResponse.json({ error: 'This date has been closed. Reopen it in Daily Closing to add expenses.' }, { status: 403 });
+    }
+
     const expense = db
       .insert(expenses)
-      .values({ description, amount: numAmount, category, date: expenseDate.toISOString() })
+      .values({ description, amount: numAmount, category, date: expenseDate.toISOString(), paymentMethod: paymentMethod ?? 'Cash' })
       .returning()
       .get();
 

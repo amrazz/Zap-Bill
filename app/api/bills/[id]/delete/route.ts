@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { format } from 'date-fns';
+import { db, isDateClosed } from '@/lib/db/client';
 import { bills } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { reason } = await request.json();
     if (!reason || reason.trim().length === 0) {
       return NextResponse.json({ error: 'A deletion reason is required.' }, { status: 400 });
+    }
+
+    const existing = db.select().from(bills).where(eq(bills.id, id)).get();
+    if (!existing) {
+      return NextResponse.json({ error: 'Bill not found.' }, { status: 404 });
+    }
+    if (isDateClosed(format(new Date(existing.createdAt), 'yyyy-MM-dd'))) {
+      return NextResponse.json({ error: "This bill's date has been closed. Reopen it in Daily Closing first." }, { status: 403 });
     }
 
     const bill = db

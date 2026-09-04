@@ -187,6 +187,9 @@ ipcMain.handle('print:receipt', async (_event, html, widthMm) => {
   });
 });
 
+// ── App info ─────────────────────────────────────────────────────
+ipcMain.handle('app:getVersion', () => app.getVersion());
+
 // ── Backup / Restore ────────────────────────────────────────────
 ipcMain.handle('backup:save', async () => {
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {

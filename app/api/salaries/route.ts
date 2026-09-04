@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { format } from 'date-fns';
-import { db } from '@/lib/db/client';
+import { db, isDateClosed } from '@/lib/db/client';
 import { salaries, salaryPayments } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
 
@@ -14,7 +14,7 @@ function serializeSalary(salary: typeof salaries.$inferSelect, payments: (typeof
     totalAmount: salary.totalAmount,
     status: salary.status,
     createdAt: salary.createdAt,
-    payments: payments.map((p) => ({ _id: p.id, amount: p.amount, paidAt: p.paidAt, notes: p.notes })),
+    payments: payments.map((p) => ({ _id: p.id, amount: p.amount, paymentMethod: p.paymentMethod, paidAt: p.paidAt, notes: p.notes })),
   };
 }
 
@@ -45,13 +45,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { staffName, paidAmount, totalAmount, paidAt, notes } = await request.json();
+    const { staffName, paidAmount, totalAmount, paidAt, notes, paymentMethod } = await request.json();
 
     if (!staffName || !staffName.trim()) return NextResponse.json({ error: 'Staff name is required' }, { status: 400 });
     if (paidAmount === undefined || paidAmount === null || paidAmount === '') {
       return NextResponse.json({ error: 'Paid amount is required' }, { status: 400 });
     }
     if (!paidAt) return NextResponse.json({ error: 'Payment date is required' }, { status: 400 });
+    if (paymentMethod !== undefined && paymentMethod !== 'Cash' && paymentMethod !== 'Online') {
+      return NextResponse.json({ error: 'Payment method must be Cash or Online' }, { status: 400 });
+    }
 
     const payDate = new Date(paidAt);
     if (isNaN(payDate.getTime())) {
@@ -61,6 +64,10 @@ export async function POST(request: NextRequest) {
     const paid = Number(paidAmount);
     if (isNaN(paid)) {
       return NextResponse.json({ error: 'Paid amount must be a number' }, { status: 400 });
+    }
+
+    if (isDateClosed(format(payDate, 'yyyy-MM-dd'))) {
+      return NextResponse.json({ error: 'This date has been closed. Reopen it in Daily Closing to add payments.' }, { status: 403 });
     }
 
     const total = totalAmount ? Number(totalAmount) : undefined;
@@ -85,7 +92,7 @@ export async function POST(request: NextRequest) {
           .returning()
           .get();
 
-    db.insert(salaryPayments).values({ salaryId: salary.id, amount: paid, paidAt: payDate.toISOString(), notes }).run();
+    db.insert(salaryPayments).values({ salaryId: salary.id, amount: paid, paymentMethod: paymentMethod ?? 'Cash', paidAt: payDate.toISOString(), notes }).run();
 
     const allPayments = db.select().from(salaryPayments).where(eq(salaryPayments.salaryId, salary.id)).all();
     const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);

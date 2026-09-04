@@ -45,6 +45,16 @@ function init(): Database.Database {
   sqlite = new DatabaseCtor(dbPath);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
+
+  // daily_closings changed shape during development (cash_sales/online_sales,
+  // derived from bills, replaced by cash_received/online_received, typed in
+  // by hand from the ledger book) before this table ever shipped to a real
+  // install — safe to drop and let CREATE_TABLES_SQL recreate it below.
+  const dailyClosingsCols = sqlite.prepare(`PRAGMA table_info(daily_closings)`).all() as { name: string }[];
+  if (dailyClosingsCols.some((c) => c.name === 'cash_sales')) {
+    sqlite.exec('DROP TABLE daily_closings;');
+  }
+
   sqlite.exec(CREATE_TABLES_SQL);
 
   // CREATE TABLE IF NOT EXISTS doesn't retroactively add columns to a database
@@ -69,6 +79,20 @@ function init(): Database.Database {
   const appSettingsCols = sqlite.prepare(`PRAGMA table_info(app_settings)`).all() as { name: string }[];
   if (!appSettingsCols.some((c) => c.name === 'printer_width_mm')) {
     sqlite.exec(`ALTER TABLE app_settings ADD COLUMN printer_width_mm INTEGER NOT NULL DEFAULT 80;`);
+  }
+
+  // Same story for payment_method on expenses/salary_payments — added after
+  // some databases already existed. Existing rows default to Cash, matching
+  // how this business operated before online payments were tracked. Bills
+  // deliberately don't get this column: the business only learns how a
+  // customer pays after the bill is already printed, so tagging it at
+  // checkout would just be a guess — see Daily Closing's cash_received /
+  // online_received, typed in from the ledger book instead.
+  for (const table of ['expenses', 'salary_payments']) {
+    const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === 'payment_method')) {
+      sqlite.exec(`ALTER TABLE ${table} ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'Cash';`);
+    }
   }
 
   // Salaries used to get a new row per payment for the same staff member
@@ -147,6 +171,14 @@ export function getAppSettings(): { department: 'Restaurant' | 'Bakery'; session
 
 export function setPrinterWidthMm(mm: number): void {
   getSqlite().prepare('UPDATE app_settings SET printer_width_mm = ? WHERE id = 1').run(mm);
+}
+
+// Whether the given business day ('yyyy-MM-dd') has already been closed —
+// closed days reject new/deleted bills, expenses, and salary payments dated
+// on them, so the reconciled numbers can't drift after the fact.
+export function isDateClosed(dateStr: string): boolean {
+  const row = getSqlite().prepare('SELECT 1 FROM daily_closings WHERE date = ?').get(dateStr);
+  return !!row;
 }
 
 export function hasAdminUser(): boolean {
